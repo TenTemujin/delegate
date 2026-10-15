@@ -57,7 +57,7 @@ Always pass `-a <kind>` and `-b <bytes of the files the helper will read>`:
 | `quick` | trivial lookups: file lists, one search, yes/no facts | argon-low → flash-low → flash-medium → flash-high |
 | `extract` | counts, names, values from large files | argon-medium → flash-medium → flash-high → Claude/OSS fallbacks |
 | `summarize` | summaries, module overviews, doc drafts | argon-medium → flash-medium → flash-high → Sonnet fallbacks |
-| `edit` | mechanical edits, boilerplate, docstrings (`-w`) | flash-medium → argon-medium → flash-high → Sonnet / Opus fallbacks (edits not yet measured) |
+| `edit` | mechanical edits, boilerplate, docstrings (`-w`) | argon-medium → flash-medium → flash-high → Sonnet / Opus fallbacks (edits not yet benchmarked) |
 | `reason` | tracing logic, explaining behaviour | argon-high → flash-high → Sonnet high → Opus high |
 
 - Below 6 KB (`-b`) the wrapper exits 3 ("stay in Claude") without calling agy. `-m` always overrides.
