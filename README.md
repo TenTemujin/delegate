@@ -49,7 +49,7 @@ Override the model with `AGY_DELEGATE_MODEL`. Unofficial; not affiliated with Go
 Turn components on/off later with `./toggle.sh` (menu) or `./toggle.sh off caveman`; Windows: `toggle.ps1`. Restart Claude Code to apply. rtk's hook is removed with rtk's own uninstall, not this toggle.
 
 ## Monitor widget
-`python3 monitor.py` then open http://127.0.0.1:8765 (stdlib only, localhost). Shows Claude Code tokens per model (from local transcripts, last 24 h) and agy helper calls (logged by `agy-run.sh` to `~/.agy-delegate/usage.jsonl`), each with an "operating" indicator. Tested: the agy indicator went active during a call and idle afterwards.
+Quick launch: `./open-monitor.sh` (macOS: double-click `Monitor.command`; Windows: `open-monitor.bat`, untested). It starts the server if needed and opens the browser; `./open-monitor.sh --stop` stops it. Manual: `python3 monitor.py` then open http://127.0.0.1:8765 (stdlib only, localhost). Shows Claude Code tokens per model (from local transcripts, last 24 h) and agy helper calls (logged by `agy-run.sh` to `~/.agy-delegate/usage.jsonl`), each with an "operating" indicator. Tested: the agy indicator went active during a call and idle afterwards.
 
 ## Research mode
 `agy-run.sh -r` (PowerShell: `-Research`) prepends `references/research-profile.md` (epistemic labels, no fabricated references, IEEE, English). Test: Mie-theory references came back with correct, Crossref-verified DOIs; agy's "Confirmed" labels are still leads, Claude re-checks.
