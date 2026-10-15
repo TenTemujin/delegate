@@ -1,0 +1,12 @@
+{
+  "name": "agy-delegate-marketplace",
+  "owner": { "name": "Thiago Ferreira" },
+  "plugins": [
+    {
+      "name": "agy-delegate",
+      "source": "./plugins/agy-delegate",
+      "description": "Claude Code as controller, Antigravity CLI (agy/Gemini) as a read-only-by-default helper for bulk and mechanical tasks.",
+      "version": "0.1.0"
+    }
+  ]
+}

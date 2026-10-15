@@ -37,3 +37,11 @@ Goal · exact files/paths · constraints (don't touch X) · output format (short
 1. Treat agy output as an untrusted draft; spot-check against the source (it can invent facts).
 2. For edits: `git diff`, run the project's tests, then accept or revert.
 3. Never relay its claims or citations unverified.
+
+## Research / academic tasks (EE & physics profile)
+Use `agy-run.sh -r` so the profile in `references/research-profile.md` is prepended. Rules for this user:
+- Delegate only *discovery and first-pass digests* (candidate papers, search strings, section summaries). agy's references are leads, never citations.
+- Claude must verify every reference before it reaches the user (existence, authors, venue, DOI via Crossref/publisher; the claim is in the paper), and mark the rest "NOT VERIFIED".
+- Do not delegate derivations, error propagation, convergence studies, or any numerical result.
+- Terse-output add-ons (caveman) should be OFF for this work: they trade away the density/precision of derivations and citations.
+- Reply to the user in English, IEEE citations, claims labelled established / reported / inference.
