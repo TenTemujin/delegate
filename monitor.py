@@ -11,15 +11,18 @@ WINDOW = 24 * 3600
 _cache = {}  # path -> (mtime, size, {model: [in, out, cache_r, cache_w, msgs]})
 
 def claude_stats(now):
+    """Per-model totals for 24 h plus rolling 5 h / 7 d windows (local estimate from transcripts)."""
     agg, last = {}, 0.0
+    win = {k: [0, 0, 0, 0, 0] for k in ("5h", "24h", "7d")}  # in, out, cache_read, cache_write, msgs
+    spans = {"5h": 5 * 3600, "24h": 24 * 3600, "7d": 7 * 24 * 3600}
     for f in glob.glob(os.path.join(CLAUDE, "**", "*.jsonl"), recursive=True):
         try: st = os.stat(f)
         except OSError: continue
         last = max(last, st.st_mtime)
-        if now - st.st_mtime > WINDOW: continue
+        if now - st.st_mtime > spans["7d"]: continue
         c = _cache.get(f)
         if not c or c[0] != st.st_mtime or c[1] != st.st_size:
-            per = {}
+            msgs = []
             try:
                 for line in open(f, errors="ignore"):
                     if '"usage"' not in line: continue
@@ -27,18 +30,22 @@ def claude_stats(now):
                     except ValueError: continue
                     m = e.get("message")
                     if not isinstance(m, dict) or not m.get("usage") or not m.get("model"): continue
-                    ts = e.get("timestamp", "")
-                    try: t = calendar.timegm(time.strptime(ts[:19], "%Y-%m-%dT%H:%M:%S"))
+                    try: t = calendar.timegm(time.strptime(e.get("timestamp", "")[:19], "%Y-%m-%dT%H:%M:%S"))
                     except ValueError: t = st.st_mtime
-                    if now - t > WINDOW: continue
-                    u = m["usage"]; r = per.setdefault(m["model"], [0, 0, 0, 0, 0])
-                    r[0] += u.get("input_tokens", 0); r[1] += u.get("output_tokens", 0)
-                    r[2] += u.get("cache_read_input_tokens", 0); r[3] += u.get("cache_creation_input_tokens", 0); r[4] += 1
+                    u = m["usage"]
+                    msgs.append((t, m["model"], u.get("input_tokens", 0), u.get("output_tokens", 0),
+                                 u.get("cache_read_input_tokens", 0), u.get("cache_creation_input_tokens", 0)))
             except OSError: pass
-            c = _cache[f] = (st.st_mtime, st.st_size, per)
-        for k, v in c[2].items():
-            a = agg.setdefault(k, [0, 0, 0, 0, 0]); a[:] = [x + y for x, y in zip(a, v)]
-    return agg, last
+            c = _cache[f] = (st.st_mtime, st.st_size, msgs)
+        for t, model, i, o, cr, cw in c[2]:
+            age = now - t
+            for k, span in spans.items():
+                if age <= span:
+                    w = win[k]; w[0] += i; w[1] += o; w[2] += cr; w[3] += cw; w[4] += 1
+            if age <= spans["24h"]:
+                r = agg.setdefault(model, [0, 0, 0, 0, 0])
+                r[0] += i; r[1] += o; r[2] += cr; r[3] += cw; r[4] += 1
+    return agg, last, win
 
 def agy_stats(now):
     open_calls, models = {}, {}
@@ -59,8 +66,10 @@ def agy_stats(now):
 
 def snapshot():
     now = time.time()
-    claude, last = claude_stats(now); agy, running = agy_stats(now)
-    return {"now": now, "claude": claude, "claude_active": now - last < 60, "claude_last_s": now - last if last else None,
+    claude, last, win = claude_stats(now); agy, running = agy_stats(now)
+    return {"now": now, "claude": claude, "windows": win,
+            "limits": {"5h": int(os.environ.get("AGY_MONITOR_LIMIT_5H", 0)), "7d": int(os.environ.get("AGY_MONITOR_LIMIT_7D", 0))},
+            "claude_active": now - last < 60, "claude_last_s": now - last if last else None,
             "agy": agy, "agy_running": [{"model": c["model"], "age_s": now - c["ts"]} for c in running]}
 
 PAGE = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "monitor.html")).read() if os.path.exists(

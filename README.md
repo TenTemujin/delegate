@@ -53,3 +53,6 @@ Quick launch: `./open-monitor.sh` (macOS: double-click `Monitor.command`; Window
 
 ## Research mode
 `agy-run.sh -r` (PowerShell: `-Research`) prepends `references/research-profile.md` (epistemic labels, no fabricated references, IEEE, English). Test: Mie-theory references came back with correct, Crossref-verified DOIs; agy's "Confirmed" labels are still leads, Claude re-checks.
+
+### Usage windows
+The widget also shows rolling 5 h / 24 h / 7 d totals (new tokens = in + out + cache write; cache reads shown separately because they are billed at a fraction). These are local estimates from transcripts: Anthropic's official 5 h/weekly percentages are server-side. Set `AGY_MONITOR_LIMIT_5H` / `AGY_MONITOR_LIMIT_7D` (tokens) to get a percentage bar against your own budget.
