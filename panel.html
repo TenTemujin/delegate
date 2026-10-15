@@ -1,0 +1,414 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="agy-token" content="__AGY_TOKEN__"><meta name="color-scheme" content="dark light">
+<title>agy-delegate</title>
+<link rel="icon" href="/assets/icon-256.png">
+<style>
+:root{
+ --fg:#f5f7ff;--fg2:rgba(235,240,255,.72);--fg3:rgba(235,240,255,.5);
+ --glass:linear-gradient(135deg,rgba(255,255,255,.15),rgba(255,255,255,.05));--glass-solid:rgba(30,34,70,.6);
+ --stroke:rgba(255,255,255,.16);--spec:rgba(255,255,255,.55);--inner:rgba(255,255,255,.07);
+ --shadow:0 24px 70px rgba(4,6,30,.45);--chip:rgba(255,255,255,.1);--track:rgba(255,255,255,.12);
+ --accent:#7c93ff;--accent2:#c27bff;--ok:#34d27b;--warn:#ffb547;--bad:#ff6b81;
+ --bg:#0b0e24;--b1:#3b5bff;--b2:#a24bff;--b3:#ff5f9e;--b4:#16c7b6;--blob-op:.55;
+ --r-lg:28px;--r-md:20px;--r-sm:14px;
+ --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
+ --mono:ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace;
+}
+@media(prefers-color-scheme:light){:root:not([data-theme=dark]){
+ --fg:#11142b;--fg2:rgba(17,20,43,.7);--fg3:rgba(17,20,43,.48);
+ --glass:linear-gradient(135deg,rgba(255,255,255,.62),rgba(255,255,255,.32));--glass-solid:rgba(255,255,255,.85);
+ --stroke:rgba(255,255,255,.75);--spec:rgba(255,255,255,.95);--inner:rgba(255,255,255,.4);
+ --shadow:0 24px 60px rgba(60,70,150,.2);--chip:rgba(17,20,43,.06);--track:rgba(17,20,43,.09);
+ --bg:#e9edff;--blob-op:.45;--accent:#4d63f5;--accent2:#9b4dff}}
+:root[data-theme=light]{
+ --fg:#11142b;--fg2:rgba(17,20,43,.7);--fg3:rgba(17,20,43,.48);
+ --glass:linear-gradient(135deg,rgba(255,255,255,.62),rgba(255,255,255,.32));--glass-solid:rgba(255,255,255,.85);
+ --stroke:rgba(255,255,255,.75);--spec:rgba(255,255,255,.95);--inner:rgba(255,255,255,.4);
+ --shadow:0 24px 60px rgba(60,70,150,.2);--chip:rgba(17,20,43,.06);--track:rgba(17,20,43,.09);
+ --bg:#e9edff;--blob-op:.45;--accent:#4d63f5;--accent2:#9b4dff}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+.shell>*,.grid>*{min-width:0}
+html,body{margin:0}
+body{min-height:100vh;color:var(--fg);background:var(--bg);font:14px/1.5 var(--font);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.bg i{position:absolute;width:55vmax;height:55vmax;border-radius:50%;filter:blur(80px);opacity:var(--blob-op);animation:drift 28s ease-in-out infinite alternate}
+.bg i:nth-child(1){background:var(--b1);left:-15vmax;top:-20vmax}
+.bg i:nth-child(2){background:var(--b2);right:-18vmax;top:-10vmax;animation-duration:34s;animation-delay:-8s}
+.bg i:nth-child(3){background:var(--b3);right:-5vmax;bottom:-28vmax;animation-duration:40s;animation-delay:-14s}
+.bg i:nth-child(4){background:var(--b4);left:-20vmax;bottom:-25vmax;animation-duration:31s;animation-delay:-20s}
+@keyframes drift{0%{transform:translate(0,0) scale(1)}50%{transform:translate(8vmax,6vmax) scale(1.12)}100%{transform:translate(-6vmax,9vmax) scale(.95)}}
+@media(prefers-reduced-motion:reduce){.bg i{animation:none}*{transition:none!important}}
+
+.glass{position:relative;background:var(--glass);border:1px solid var(--stroke);border-radius:var(--r-lg);
+ -webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);
+ box-shadow:var(--shadow),inset 0 1px 0 var(--spec),inset 0 -1px 0 var(--inner),inset 0 0 24px var(--inner)}
+.glass::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;padding:1px;
+ background:linear-gradient(140deg,var(--spec),transparent 30%,transparent 70%,rgba(255,255,255,.25));
+ -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.glass{background:var(--glass-solid)}}
+
+.shell{max-width:1120px;margin:0 auto;padding:20px 16px 80px;display:grid;gap:18px}
+header.glass{display:flex;align-items:center;gap:14px;padding:12px 14px 12px 16px;border-radius:24px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px;font-weight:650;font-size:16px;letter-spacing:-.01em}
+.logo{width:34px;height:34px;filter:drop-shadow(0 5px 12px rgba(124,110,255,.45))}
+.grow{flex:1}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;font-size:12px;color:var(--fg2);background:var(--chip);white-space:nowrap;box-shadow:inset 0 1px 0 var(--inner)}
+.pill.accent{color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));cursor:pointer;border:0;font:inherit;font-size:12px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--fg3);flex:none}
+.live .dot{background:var(--ok);animation:pulse 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(52,210,123,.7)}70%{box-shadow:0 0 0 9px rgba(52,210,123,0)}100%{box-shadow:0 0 0 0 rgba(52,210,123,0)}}
+
+nav.seg{position:relative;display:flex;gap:2px;padding:4px;border-radius:999px;overflow-x:auto;scrollbar-width:none}
+nav.seg::-webkit-scrollbar{display:none}
+nav.seg button{position:relative;z-index:1;border:0;background:none;color:var(--fg2);font:500 13px var(--font);padding:8px 16px;border-radius:999px;cursor:pointer;white-space:nowrap;transition:color .2s}
+nav.seg button[aria-selected=true]{color:var(--fg)}
+nav.seg .ind{position:absolute;z-index:0;top:4px;bottom:4px;border-radius:999px;background:var(--chip);box-shadow:inset 0 1px 0 var(--spec),0 4px 14px rgba(0,0,0,.15);transition:left .35s cubic-bezier(.3,1.3,.5,1),width .35s cubic-bezier(.3,1.3,.5,1)}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+section[hidden]{display:none}
+.grid{display:grid;gap:18px}
+.g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:1fr}}
+@media(max-width:640px){.g4,.g2{grid-template-columns:1fr}}
+.card{padding:20px 22px}
+.card h2{margin:0 0 4px;font-size:15px;font-weight:620;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+.card h2 .pill{margin-left:auto}
+.sub{color:var(--fg3);font-size:12px}
+.kpi{padding:18px 20px;border-radius:var(--r-md)}
+.kpi .lab{color:var(--fg2);font-size:12px;font-weight:500}
+.kpi .val{font-size:30px;font-weight:650;letter-spacing:-.03em;margin:4px 0 2px;font-variant-numeric:tabular-nums}
+.kpi .val small{font-size:14px;font-weight:500;color:var(--fg2);margin-left:4px}
+
+.rows{display:grid;gap:14px;margin-top:14px}
+.r .top{display:flex;justify-content:space-between;gap:10px;font-weight:520}
+.r .top span:last-child{font-variant-numeric:tabular-nums;color:var(--fg2)}
+.bar{height:8px;border-radius:99px;background:var(--track);margin:7px 0 5px;overflow:hidden}
+.bar>b{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--accent),var(--accent2));box-shadow:0 0 14px rgba(124,147,255,.55);transition:width .7s cubic-bezier(.2,.8,.2,1)}
+.bar.stack{display:flex;gap:2px;background:transparent}.bar.stack>b{box-shadow:none}.bar.stack>b.ok{background:var(--ok)}.bar.stack>b.den{background:var(--warn)}.bar.stack>b.bad{background:var(--bad)}
+.bar>b.warn{background:linear-gradient(90deg,var(--warn),var(--bad))}
+.lad{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}.lad .chip{font-family:var(--mono);font-weight:500}
+.hero{display:flex;gap:22px;align-items:center}.heroimg{width:96px;height:96px;flex:none;filter:drop-shadow(0 10px 24px rgba(124,110,255,.45))}
+@media(max-width:640px){.hero{flex-direction:column;align-items:flex-start}}
+.empty{color:var(--fg3);font-size:13px;padding:6px 0}
+
+.tbl{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.tbl th{text-align:left;font-weight:550;color:var(--fg3);font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--track)}
+.tbl td{padding:10px;border-bottom:1px solid var(--track)}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .num{text-align:right}
+.scroll{overflow-x:auto;margin:10px -6px 0}
+.chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11.5px;font-weight:600;background:var(--chip)}
+.chip.ok{color:var(--ok);background:rgba(52,210,123,.14)}.chip.bad{color:var(--bad);background:rgba(255,107,129,.14)}.chip.warn{color:var(--warn);background:rgba(255,181,71,.15)}
+.mono{font-family:var(--mono);font-size:12px;word-break:break-all}
+
+.item{display:flex;align-items:center;gap:14px;padding:14px 0 0;margin-top:14px}
+.item+.item{border-top:1px solid var(--track)}
+.item .t{font-weight:560}.item .grow{min-width:0}
+.btn{border:1px solid var(--stroke);background:var(--chip);color:var(--fg);font:560 13px var(--font);padding:9px 16px;border-radius:999px;cursor:pointer;
+ box-shadow:inset 0 1px 0 var(--spec);transition:transform .15s,background .2s;white-space:nowrap}
+.btn:hover{transform:translateY(-1px)}.btn:active{transform:scale(.97)}
+.btn.primary{color:#fff;border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 8px 22px rgba(124,147,255,.4),inset 0 1px 0 rgba(255,255,255,.45)}
+.btn.danger{color:var(--bad)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.sw{position:relative;width:51px;height:31px;flex:none}
+.sw input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer;z-index:1}
+.sw span{position:absolute;inset:0;border-radius:99px;background:var(--track);box-shadow:inset 0 1px 2px rgba(0,0,0,.2);transition:background .25s}
+.sw span::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.25);transition:transform .3s cubic-bezier(.3,1.4,.5,1)}
+.sw input:checked+span{background:var(--ok)}
+.sw input:checked+span::after{transform:translateX(20px)}
+.sw input:disabled+span{opacity:.4}
+.sw input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+label.ck{display:flex;align-items:center;gap:9px;color:var(--fg2);cursor:pointer;font-size:13px}
+label.ck input{accent-color:var(--accent);width:16px;height:16px}
+.field{display:grid;gap:6px;margin-top:12px}
+.field span{font-size:12px;color:var(--fg2);font-weight:500}
+input[type=text],input[type=number]{width:100%;font:14px var(--font);color:var(--fg);background:var(--chip);border:1px solid var(--stroke);border-radius:12px;padding:10px 12px;box-shadow:inset 0 1px 2px rgba(0,0,0,.12)}
+.opts{display:grid;gap:10px;margin-top:14px}
+.note{margin-top:12px;padding:12px 14px;border-radius:var(--r-sm);background:var(--chip);color:var(--fg2);font-size:12.5px}
+.note.warn{background:rgba(255,181,71,.12);color:var(--fg)}
+.note.bad{background:rgba(255,107,129,.13);color:var(--fg)}
+.big{font-size:22px;font-weight:650;letter-spacing:-.02em}
+.notes{white-space:pre-wrap;font-size:13px;color:var(--fg2);max-height:260px;overflow:auto;margin-top:10px}
+
+.drawer{position:fixed;right:16px;bottom:16px;width:min(460px,calc(100vw - 32px));border-radius:22px;padding:14px 16px;z-index:20;transform:translateY(140%);transition:transform .45s cubic-bezier(.3,1.2,.5,1)}
+.drawer.open{transform:none}
+.drawer .hd{display:flex;align-items:center;gap:10px;font-weight:600}
+.drawer pre{margin:10px 0 0;max-height:220px;overflow:auto;font:12px/1.55 var(--mono);color:var(--fg2);white-space:pre-wrap;word-break:break-word}
+.spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--track);border-top-color:var(--accent);animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.x{margin-left:auto;border:0;background:var(--chip);color:var(--fg2);width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:14px}
+dialog{border:0;padding:0;background:none;color:var(--fg);max-width:min(440px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(5,8,25,.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+dialog .glass{padding:22px 24px}
+dialog h3{margin:0 0 8px;font-size:17px}
+dialog p{margin:0;color:var(--fg2)}
+.foot{text-align:center;color:var(--fg3);font-size:11.5px}
+.toast{position:fixed;left:50%;top:18px;transform:translate(-50%,-220%);visibility:hidden;padding:10px 16px;border-radius:999px;z-index:30;transition:transform .4s cubic-bezier(.3,1.3,.5,1);font-weight:520;font-size:13px}
+.toast.show{transform:translate(-50%,0);visibility:visible}
+.lights{display:none;gap:8px;margin-right:4px}
+html.native.custom-chrome .lights{display:flex}
+html.native.mac header.glass{padding-left:84px}
+html.native::-webkit-scrollbar{width:10px}html.native::-webkit-scrollbar-track{background:transparent}
+html.native::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25);border-radius:99px;border:3px solid transparent;background-clip:content-box}
+.tl{width:13px;height:13px;border-radius:50%;border:0;padding:0;cursor:pointer;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.25)}
+.tl.c{background:#ff5f57}.tl.m{background:#febc2e}.tl.z{background:#28c840}
+.lights:hover .tl::after{content:"";display:block}
+header .pill,header button{-webkit-app-region:no-drag}
+/* Windows 10: the OS window is fully transparent; the page paints the rounded, tinted glass (radius = window region) */
+html.native.win10 body::before{content:"";position:fixed;inset:0;z-index:-1;border-radius:18px;background:var(--pane);
+ border:1px solid var(--stroke);box-shadow:inset 0 1px 0 var(--spec)}
+html.native.win10{--pane:rgba(16,19,42,.6)}
+@media(prefers-color-scheme:light){html.native.win10:not([data-theme=dark]){--pane:rgba(240,243,255,.62)}}
+html.native.win10[data-theme=light]{--pane:rgba(240,243,255,.62)}
+/* native desktop window (app.py): the OS blurs the desktop behind a transparent page */
+html.native,html.native body{background:transparent}
+html.native .bg{display:none}
+html.native{--glass:linear-gradient(135deg,rgba(255,255,255,.22),rgba(255,255,255,.06));--shadow:0 12px 40px rgba(0,0,0,.25)}
+html.native:not([data-theme=light]) body{text-shadow:0 1px 2px rgba(0,0,0,.25)}
+</style></head><body>
+<div class="bg" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+<div class="shell">
+ <header class="glass pywebview-drag-region">
+  <div class="lights" aria-label="Window controls"><button class="tl c" data-win="close" aria-label="Close"></button><button class="tl m" data-win="minimize" aria-label="Minimize"></button><button class="tl z" data-win="toggle_maximize" aria-label="Zoom"></button></div>
+  <div class="brand"><img class="logo" src="/assets/icon-256.png" alt="">agy-delegate</div>
+  <span class="pill" id="ver">v…</span>
+  <button class="pill accent" id="updBadge" hidden>Update available</button>
+  <span class="grow"></span>
+  <span class="pill" id="cPill"><span class="dot"></span><span id="cTxt">Claude …</span></span>
+  <span class="pill" id="aPill"><span class="dot"></span><span id="aTxt">agy …</span></span>
+  <button class="pill" id="theme" title="Theme" aria-label="Toggle theme" style="border:0;cursor:pointer;font:inherit;font-size:12px">◐</button>
+ </header>
+ <nav class="seg glass" role="tablist" aria-label="Sections"><span class="ind"></span>
+  <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
+  <button role="tab" data-tab="activity">Activity</button>
+  <button role="tab" data-tab="components">Components</button>
+  <button role="tab" data-tab="router">Router</button>
+  <button role="tab" data-tab="updates">Updates</button>
+  <button role="tab" data-tab="settings">Settings</button>
+ </nav>
+
+ <section id="tab-overview" class="grid">
+  <div class="glass card hero" id="welcome" hidden>
+   <img src="/assets/icon-256.png" alt="" class="heroimg">
+   <div class="grow"><h2 style="font-size:20px">Set up agy-delegate</h2>
+    <div class="sub" style="font-size:13px">One click: installs the Antigravity CLI if missing (Google's official installer), applies read-only safety rules, and enables the plugin in Claude Code. Everything is recorded, so Uninstall puts your settings back exactly.</div>
+    <div class="actions"><button class="btn primary" id="btnSetup">Install everything</button><button class="btn" id="btnSetupMore">Options…</button></div></div>
+  </div>
+  <div class="grid g4">
+   <div class="glass kpi"><div class="lab">Claude new tokens · 24 h</div><div class="val" id="k1">–</div><div class="sub" id="k1s"></div></div>
+   <div class="glass kpi"><div class="lab">Delegated calls · 24 h</div><div class="val" id="k2">–</div><div class="sub" id="k2s"></div></div>
+   <div class="glass kpi"><div class="lab">Claude tokens saved · 24 h</div><div class="val" id="k3">–</div><div class="sub" id="k3s"></div></div>
+   <div class="glass kpi"><div class="lab">Helper tokens (Gemini) · 24 h</div><div class="val" id="k4">–</div><div class="sub">not billed to Claude</div></div>
+  </div>
+  <div class="grid g2">
+   <div class="glass card"><h2>Usage windows <span class="pill">local estimate</span></h2><div class="sub">new tokens = in + out + cache write · <span id="winHint"></span></div><div class="rows" id="windows"></div></div>
+   <div class="glass card"><h2>Claude tokens saved <span class="pill">heuristic</span></h2><div class="sub">estimated only when the call passed <span class="mono">-b</span> (source size); others are counted, never guessed</div><div class="rows" id="saved"></div></div>
+  </div>
+  <div class="grid g2">
+   <div class="glass card"><h2>Claude Code models · 24 h <span class="pill">share</span></h2><div class="rows" id="cModels"></div></div>
+   <div class="glass card"><h2>agy helper models · 24 h <span class="pill">outcomes</span></h2><div class="rows" id="aModels"></div></div>
+  </div>
+ </section>
+
+ <section id="tab-activity" hidden>
+  <div class="glass card"><h2>Recent delegated calls <span class="pill" id="callCount">0</span></h2>
+   <div class="sub">from ~/.agy-delegate/usage.jsonl · newest first</div>
+   <div class="scroll"><table class="tbl"><thead><tr><th>Time</th><th>Model</th><th>Status</th><th class="num">Duration</th><th class="num">Helper in / out</th><th class="num">Source</th><th class="num">Saved (est.)</th></tr></thead><tbody id="calls"></tbody></table></div>
+  </div>
+ </section>
+
+ <section id="tab-components" class="grid" hidden>
+  <div id="errs"></div>
+  <div class="grid g2">
+   <div class="glass card"><h2>Plugins in Claude Code</h2><div class="sub">same switch as /plugin · restart Claude Code to apply</div>
+    <div class="item"><div class="grow"><div class="t">agy-delegate</div><div class="sub">delegate bulk/mechanical work to agy</div></div><label class="sw"><input type="checkbox" id="swAgy" aria-label="agy-delegate"><span></span></label></div>
+    <div class="item"><div class="grow"><div class="t">caveman <span class="chip">third-party</span></div><div class="sub">terser replies · savings not measured here</div></div><label class="sw"><input type="checkbox" id="swCave" aria-label="caveman"><span></span></label></div>
+   </div>
+   <div class="glass card"><h2>Antigravity CLI</h2><div class="sub">the helper that does the delegated work</div>
+    <div class="item"><div class="grow"><div class="t" id="agyVer">–</div><div class="sub mono" id="agyPath"></div></div><button class="btn" id="btnAgy">Install agy</button></div>
+    <div class="item"><div class="grow"><div class="t">Safe permission rules</div><div class="sub" id="permTxt">–</div></div><button class="btn" id="btnPerms">Apply</button></div>
+    <div id="legacy"></div>
+   </div>
+  </div>
+  <div class="glass card"><h2>Install / uninstall <span class="pill" id="instState">–</span></h2>
+   <div class="sub">uninstall restores every settings key to its value before install (recorded in ~/.agy-delegate/install-state.json)</div>
+   <label class="field"><span>Marketplace source (blank = this folder)</span><input type="text" id="repo" placeholder="owner/name, e.g. TenTemujin/delegate" autocomplete="off" spellcheck="false"></label>
+   <div class="opts">
+    <label class="ck"><input type="checkbox" id="optCave"> Also add caveman (third-party, not validated here)</label>
+    <label class="ck"><input type="checkbox" id="optSkip"> Skip agy (do not install it or touch its permissions)</label>
+    <label class="ck"><input type="checkbox" id="optLegacy"> Keep broad legacy rules (find, sed -n) — not recommended</label>
+   </div>
+   <div class="actions"><button class="btn primary" id="btnInstall">Install</button><button class="btn danger" id="btnUninstall">Uninstall</button></div>
+  </div>
+ </section>
+
+ <section id="tab-router" class="grid" hidden>
+  <div class="glass card"><h2>Routing by task <span class="pill">live</span></h2><div class="sub">for an input of 100 KB · the highlighted model is what the router picks now; the rest is the fallback order</div><div class="rows" id="choices"></div></div>
+  <div class="glass card"><h2>All agy models <button class="btn" id="btnModels" style="margin-left:auto;padding:6px 12px">Refresh list</button></h2><div class="sub" id="routerRule"></div>
+   <div class="scroll"><table class="tbl"><thead><tr><th>Model</th><th>Role</th><th class="num">Calls · 7 d</th><th style="width:22%">Failure rate</th><th class="num">Mean ok time</th></tr></thead><tbody id="rModels"></tbody></table></div>
+   <div class="sub" id="catInfo" style="margin-top:10px"></div>
+  </div>
+ </section>
+
+ <section id="tab-updates" class="grid" hidden>
+  <div class="grid g2">
+   <div class="glass card"><h2>Version</h2>
+    <div class="item"><div class="grow"><div class="sub">Installed</div><div class="big" id="uCur">–</div></div><div class="grow"><div class="sub">Latest release</div><div class="big" id="uLat">–</div></div></div>
+    <div class="sub" id="uChecked"></div>
+    <div class="actions"><button class="btn" id="btnCheck">Check now</button><button class="btn primary" id="btnUpdate" disabled>Update</button></div>
+    <div class="note">Updating fast-forwards this git clone (never discards local changes) and refreshes the Claude Code marketplace.</div>
+   </div>
+   <div class="glass card"><h2>Automatic updates</h2>
+    <div class="item"><div class="grow"><div class="t">Install updates automatically</div><div class="sub">checked once a day when the panel starts</div></div><label class="sw"><input type="checkbox" id="swAuto" aria-label="automatic updates"><span></span></label></div>
+    <div class="sub" style="margin-top:12px">Release notes</div><div class="notes" id="uNotes">–</div>
+   </div>
+  </div>
+ </section>
+
+ <section id="tab-settings" class="grid" hidden>
+  <div class="grid g2">
+   <div class="glass card"><h2>Token budgets</h2><div class="sub">your own budget per window, in new tokens; 0 = none. Env AGY_MONITOR_LIMIT_* overrides.</div>
+    <div class="grid g3" style="gap:12px">
+     <label class="field"><span>5 hours</span><input type="number" min="0" step="1000" id="l5h" placeholder="none"></label>
+     <label class="field"><span>Daily</span><input type="number" min="0" step="1000" id="l24h" placeholder="none"></label>
+     <label class="field"><span>Weekly</span><input type="number" min="0" step="1000" id="l7d" placeholder="none"></label>
+    </div>
+    <div class="actions"><button class="btn primary" id="btnLimits">Save</button></div>
+   </div>
+   <div class="glass card"><h2>Routing</h2>
+    <div class="item"><div class="grow"><div class="t">Use Claude models inside agy</div><div class="sub">Opus / Sonnet through Antigravity as fallbacks for hard tasks. Not verified whether Antigravity bills them to your Claude plan.</div></div><label class="sw"><input type="checkbox" id="swClaude" aria-label="Use Claude models inside agy"><span></span></label></div>
+   </div>
+   <div class="glass card"><h2>Files</h2><div class="sub">everything this tool reads or writes</div><div id="paths"></div></div>
+  </div>
+ </section>
+ <div class="foot" id="foot"></div>
+</div>
+
+<div class="drawer glass" id="drawer" role="status" aria-live="polite"><div class="hd"><span class="spin" id="jSpin"></span><span id="jName"></span><button class="x" id="jClose" aria-label="Close">✕</button></div><pre id="jLog"></pre></div>
+<div class="toast glass" id="toast"></div>
+<dialog id="dlg"><div class="glass"><h3 id="dT"></h3><p id="dP"></p><div class="actions" style="justify-content:flex-end"><button class="btn" value="cancel" id="dNo">Cancel</button><button class="btn primary" id="dYes">Continue</button></div></div></dialog>
+
+<script>
+"use strict";
+const NATIVE=new URLSearchParams(location.search).get("shell")==="native";if(NATIVE){const os=new URLSearchParams(location.search).get("os");document.documentElement.classList.add("native",os==="mac"?"mac":"custom-chrome");if(os==="win10")document.documentElement.classList.add("win10")}
+const TOKEN=document.querySelector('meta[name=agy-token]').content;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const n=x=>{x=+x||0;return x>=1e6?(x/1e6).toFixed(2)+"M":x>=1e3?(x/1e3).toFixed(1)+"k":String(Math.round(x))};
+async function api(p,o={}){const r=await fetch(p,{...o,headers:{"Content-Type":"application/json","X-Agy-Token":TOKEN}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||("HTTP "+r.status));return d}
+const post=b=>api("/api/action",{method:"POST",body:JSON.stringify(b)});
+function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("show"),2600)}
+function confirmBox(title,text,yes="Continue"){return new Promise(res=>{$("dT").textContent=title;$("dP").textContent=text;$("dYes").textContent=yes;const d=$("dlg");
+ const done=v=>{d.close();$("dYes").onclick=$("dNo").onclick=null;res(v)};$("dYes").onclick=()=>done(true);$("dNo").onclick=()=>done(false);d.oncancel=()=>res(false);d.showModal()})}
+function bar(it){if(it.parts)return `<div class="bar stack">${it.parts.map(([c,p,t])=>`<b class="${c}" style="width:${p}%" title="${esc(t)}"></b>`).join("")}</div>`;
+ return it.pct==null?"":`<div class="bar" title="${Math.round(it.pct)}%"><b class="${it.warn?"warn":""}" style="width:${Math.max(it.pct>0?1.5:0,Math.min(100,it.pct))}%"></b></div>`}
+function rows(el,items,empty="No activity yet"){el.innerHTML=items.length?items.map(it=>`<div class="r"><div class="top"><span>${esc(it.k)}</span><span>${esc(it.v)}</span></div>${bar(it)}<div class="sub">${esc(it.s)}</div></div>`).join(""):`<div class="empty">${esc(empty)}</div>`}
+
+/* tabs */
+const tabs=[...document.querySelectorAll("nav.seg button")],ind=document.querySelector("nav.seg .ind");
+function moveInd(b){ind.style.left=b.offsetLeft+"px";ind.style.width=b.offsetWidth+"px"}
+function show(name){tabs.forEach(b=>{const on=b.dataset.tab===name;b.setAttribute("aria-selected",on);if(on){moveInd(b);b.scrollIntoView({block:"nearest",inline:"nearest"})}});
+ document.querySelectorAll("section").forEach(s=>s.hidden=s.id!=="tab-"+name);try{localStorage.setItem("agy-tab",name)}catch(e){}if(location.hash!=="#"+name)history.replaceState(null,"","#"+name);
+ if(name==="router"||name==="settings")loadRouter();if(name==="components"||name==="updates"||name==="settings")loadStatus()}
+tabs.forEach(b=>b.onclick=()=>show(b.dataset.tab));addEventListener("resize",()=>moveInd(tabs.find(b=>b.getAttribute("aria-selected")==="true")));
+/* theme */
+function applyTheme(t){if(t)document.documentElement.dataset.theme=t;else delete document.documentElement.dataset.theme}
+try{const t=localStorage.getItem("agy-theme");if(t)applyTheme(t)}catch(e){}
+$("theme").onclick=()=>{const dark=matchMedia("(prefers-color-scheme: dark)").matches;const cur=document.documentElement.dataset.theme||(dark?"dark":"light");const nx=cur==="dark"?"light":"dark";applyTheme(nx);try{localStorage.setItem("agy-theme",nx)}catch(e){}};
+
+/* stats */
+const W=[["5 h","5h"],["24 h","24h"],["7 days","7d"]];
+async function loadStats(){try{const d=await api("/api/stats");
+ const tot=Object.values(d.claude).reduce((a,[i,o,cr,cw])=>a+i+o+cw,0);
+ const cm=Object.entries(d.claude).map(([m,[i,o,cr,cw,k]])=>{const t=i+o+cw;return{k:m,v:`${n(t)} · ${tot?Math.round(100*t/tot):0}%`,s:`share of Claude's new tokens · in ${n(i)} · out ${n(o)} · cache write ${n(cw)} · ${k} msgs`,pct:tot?100*t/tot:0,t}}).sort((a,b)=>b.t-a.t);
+ rows($("cModels"),cm,"No Claude Code usage in the last 24 h");
+ const L=d.limits,anyLim=["5h","24h","7d"].some(k=>L[k]);
+ rows($("windows"),W.map(([lab,k])=>{const[i,o,cr,cw,m]=d.windows[k],nw=i+o+cw,lim=L[k]||0,pct=lim?100*nw/lim:null;
+  return{k:lab,v:n(nw)+(lim?` of ${n(lim)} · ${Math.round(pct)}%`:" new tokens"),pct,warn:pct>=85,s:`in ${n(i)} · out ${n(o)} · cache write ${n(cw)} · cache read ${n(cr)} · ${m} msgs`}}));
+ $("winHint").textContent=anyLim?"bars = share of your budget for that window (orange from 85%)":"set a budget in Settings to see how much of each window you have used";
+ const S=d.saved||{},U=d.saved_unestimated||{};
+ rows($("saved"),W.map(([lab,k])=>{const u=d.windows[k][0]+d.windows[k][1]+d.windows[k][3],s=S[k]||0,un=U[k]||0,pct=s&&(s+u)?100*s/(s+u):null;
+  return{k:lab,v:s?`~${n(s)} tok · ${Math.round(pct)}%`:(un?"not estimated":"0"),pct,s:(s?"bar = share of the would-be Claude total that delegation avoided":"no delegated call with a known source size")+(un?` · ${un} call${un>1?"s":""} without -b not counted`:"")}}));
+ rows($("aModels"),Object.entries(d.agy).map(([m,r])=>{const c=r.calls||1,f=r.failed||0;
+  return{k:m,v:`${r.calls} calls · ${Math.round(100*r.ok/c)}% ok`,parts:[["ok",100*r.ok/c,`${r.ok} ok`],["den",100*r.denied/c,`${r.denied} denied`],["bad",100*f/c,`${f} failed`]].filter(p=>p[1]>0),
+   s:`green ok · amber denied · red failed · helper ${n(r.in_tokens)} in / ${n(r.out_tokens)} out · ${Math.round(r.dur_s)} s total`}}),"No delegated calls in the last 24 h");
+ const c24=d.windows["24h"],calls=Object.values(d.agy).reduce((a,r)=>({c:a.c+r.calls,o:a.o+r.ok,i:a.i+r.in_tokens+r.out_tokens}),{c:0,o:0,i:0});
+ $("k1").textContent=n(c24[0]+c24[1]+c24[3]);$("k1s").textContent=`${c24[4]} messages · cache read ${n(c24[2])}`;
+ $("k2").innerHTML=esc(calls.c)+(calls.c?`<small>${Math.round(100*calls.o/calls.c)}% ok</small>`:"");$("k2s").textContent=calls.c?`${calls.c-calls.o} not ok`:"none yet";
+ $("k3").textContent=S["24h"]?"~"+n(S["24h"]):(U["24h"]?"n/a":"0");$("k3s").textContent=U["24h"]?`${U["24h"]} call(s) not estimated`:"estimated from -b sizes";
+ $("k4").textContent=n(calls.i);
+ $("cPill").classList.toggle("live",d.claude_active);$("cTxt").textContent=d.claude_active?"Claude operating":d.claude_last_s==null?"Claude: no sessions":`Claude idle ${Math.round(d.claude_last_s/60)} min`;
+ const run=d.agy_running.length;$("aPill").classList.toggle("live",!!run);$("aTxt").textContent=run?`agy running (${run})`:"agy idle";
+ $("callCount").textContent=d.calls.length;
+ $("calls").innerHTML=d.calls.length?d.calls.map(c=>{const st=c.status,cl=st==="ok"?"ok":st==="denied"?"warn":"bad";
+  return `<tr><td>${esc(new Date(c.ts*1000).toLocaleString([], {month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}))}</td><td class="mono">${esc(c.model)}</td><td><span class="chip ${cl}">${esc(st)}</span></td><td class="num">${esc(c.dur_s)} s</td><td class="num">${n(c.in_tokens)} / ${n(c.out_tokens)}</td><td class="num">${c.src_bytes?n(c.src_bytes)+" B":"–"}</td><td class="num">${c.saved==null?'<span class="sub">not estimated</span>':"~"+n(c.saved)}</td></tr>`}).join(""):'<tr><td colspan="7" class="empty">No delegated calls logged yet</td></tr>';
+ $("foot").textContent="Updated "+new Date(d.now*1000).toLocaleTimeString()+" · Claude tokens from local transcripts; Anthropic's official 5 h / weekly percentages are server-side";
+}catch(e){$("foot").textContent="Panel offline: "+e.message}}
+
+/* status */
+let ST=null;
+async function loadStatus(){try{const s=ST=await api("/api/status");
+ $("ver").textContent="v"+s.version;
+ const u=s.update||{};$("updBadge").hidden=!u.available;$("updBadge").textContent=`Update ${u.latest||""} available`;
+ $("uCur").textContent=u.current||s.version;$("uLat").textContent=u.latest||(u.error?"unavailable":"none published");
+ $("uChecked").textContent=u.error?`Check failed: ${u.error}`:u.checked?`Last checked ${new Date(u.checked*1000).toLocaleString()}`:"";
+ $("btnUpdate").disabled=!u.available;$("uNotes").textContent=u.notes||"–";$("swAuto").checked=!!s.config.auto_update;
+ for(const[id,name]of[["swAgy","agy-delegate"],["swCave","caveman"]]){const v=s.plugins[name],el=$(id);el.checked=v==="on";el.disabled=v==="absent";el.closest(".item").querySelector(".sub").dataset.absent=v==="absent"}
+ $("agyVer").textContent=s.agy.path?`agy ${s.agy.version||"(version unknown)"}`:"agy not installed";$("agyPath").textContent=s.agy.path||"run Install, or install it from antigravity.google";
+ $("btnAgy").hidden=!!s.agy.path;
+ $("permTxt").textContent=s.perms.missing.length?`${s.perms.missing.length} rule(s) missing: ${s.perms.missing.join(", ")}`:"all read-only allow / destructive deny rules present";
+ $("btnPerms").disabled=!s.perms.missing.length&&!s.perms.legacy.length;
+ $("legacy").innerHTML=s.perms.legacy.length?`<div class="note warn">Broad legacy rules present: <span class="mono">${esc(s.perms.legacy.join(", "))}</span>. They allow <span class="mono">find -delete/-exec</span> and <span class="mono">sed w</span>. Apply removes them.</div>`:"";
+ $("errs").innerHTML=s.errors.map(e=>`<div class="note bad">${esc(e)}</div>`).join("");
+ $("welcome").hidden=!!s.installed;
+ $("instState").textContent=s.installed?"installed":"not installed";$("btnUninstall").disabled=!s.installed;
+ const src=s.marketplace;if(src&&src.source==="github"&&!$("repo").value)$("repo").value=src.repo;
+ const L=s.config.limits||{};for(const k of["5h","24h","7d"]){const el=$("l"+k);if(document.activeElement!==el)el.value=L[k]||""}
+ $("paths").innerHTML=Object.entries({"Claude settings":s.paths.claude,"agy settings":s.paths.agy,"Install record":s.paths.state,"Project folder":s.repo_root}).map(([k,v])=>`<div class="item"><div class="grow"><div class="t">${esc(k)}</div><div class="sub mono">${esc(v)}</div></div></div>`).join("");
+}catch(e){toast("Status failed: "+e.message)}}
+
+/* router */
+async function loadRouter(){try{const r=await api("/api/router");
+ $("choices").innerHTML=Object.entries(r.choices).map(([k,c])=>`<div class="r"><div class="top"><span>${esc(k)} <span class="sub">· ${esc(c.about)}</span></span><span class="mono">${esc(c.model)}</span></div><div class="lad">${c.ladder.map(m=>`<span class="chip ${m===c.model?"ok":""}">${esc(m)}</span>`).join('<span class="sub">→</span>')}</div>${c.why.includes("->")?`<div class="sub">${esc(c.why)}</div>`:""}</div>`).join("");
+ $("routerRule").textContent=`Every model agy offers. "router" = in a task ladder, "manual" = only with -m, "off" = disabled in Settings. A model is skipped when it fails > ${Math.round(r.fail_rate*100)}% over ≥ ${r.min_calls} calls (error / denied / empty; wrong answers are not visible to the router). Inputs under ${n(r.min_bytes)} B stay in Claude.`;$("swClaude").checked=r.allow_claude;
+ const cat=r.catalog.models,ids=new Set(cat.map(m=>m.id));Object.keys(r.models).forEach(m=>{if(!ids.has(m))cat.push({id:m,name:m,role:"available",note:"seen in your log, not in agy's current list",available:false})});
+ const chip={router:"ok",manual:"",off:"warn"};
+ $("rModels").innerHTML=cat.map(m=>{const s=r.models[m.id]||{calls:0,fails:0,ok_s:0},rate=s.calls?s.fails/s.calls:0,ok=s.calls-s.fails;
+  return `<tr title="${esc(m.note)}"><td><div class="mono">${esc(m.id)}</div><div class="sub">${esc(m.name!==m.id?m.name:"")}${m.available===false?" · not offered by agy now":""}</div></td><td><span class="chip ${chip[m.role]}">${esc(m.role)}</span>${s.quota_until*1000>Date.now()?` <span class="chip bad">quota until ${esc(new Date(s.quota_until*1000).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}))}</span>`:""}<div class="sub">${esc(m.note)}</div></td><td class="num">${s.calls}${s.calls?` <span class="sub">(${s.fails} failed)</span>`:""}</td><td>${s.calls?`<div class="bar" style="margin:0" title="${Math.round(rate*100)}%"><b class="${rate>r.fail_rate?"warn":""}" style="width:${Math.max(2,rate*100)}%"></b></div><div class="sub">${Math.round(rate*100)}%</div>`:'<span class="sub">no calls</span>'}</td><td class="num">${ok?Math.round(s.ok_s/ok)+" s":"–"}</td></tr>`}).join("");
+ $("catInfo").textContent=(r.catalog.error?`Could not refresh the list (${r.catalog.error}); showing the last one. `:"")+(r.catalog.fetched?`List from \`agy models\`, fetched ${new Date(r.catalog.fetched*1000).toLocaleString()}.`:"");
+}catch(e){toast("Router failed: "+e.message)}}
+
+/* jobs */
+let polling=null;
+async function runJob(body,label){try{const{job}=await post(body);openDrawer(label);poll(job)}catch(e){toast(e.message)}}
+function openDrawer(label){$("jName").textContent=label;$("jLog").textContent="";$("jSpin").style.display="";$("drawer").classList.add("open")}
+$("jClose").onclick=()=>$("drawer").classList.remove("open");
+function poll(id,after){clearTimeout(polling);api("/api/job/"+id).then(j=>{$("jLog").textContent=j.log.join("\n");$("jLog").scrollTop=1e9;
+ if(j.state==="running"){polling=setTimeout(()=>poll(id,after),600);return}
+ $("jSpin").style.display="none";$("jName").textContent+=j.state==="done"?" — done":" — failed";loadStatus();loadStats();after&&after()}).catch(e=>toast(e.message))}
+
+$("btnInstall").onclick=async()=>{const skip=$("optSkip").checked;
+ if(!skip&&!(ST&&ST.agy.path)&&!await confirmBox("Install agy?","agy is not installed. This downloads and runs Google's official installer from antigravity.google.","Install"))return;
+ runJob({action:"install",repo:$("repo").value,with_caveman:$("optCave").checked,skip_agy:skip,keep_legacy:$("optLegacy").checked},"Installing")};
+$("btnSetup").onclick=()=>$("btnInstall").click();
+$("btnSetupMore").onclick=()=>show("components");
+$("btnUninstall").onclick=async()=>{if(await confirmBox("Uninstall agy-delegate?","Restores Claude Code and agy settings to their values before install. agy itself and your usage log are kept.","Uninstall"))runJob({action:"uninstall"},"Uninstalling")};
+$("btnAgy").onclick=async()=>{if(await confirmBox("Install agy?","Downloads and runs Google's official installer from antigravity.google.","Install"))runJob({action:"install_agy"},"Installing agy")};
+$("btnPerms").onclick=()=>runJob({action:"perms"},"Applying safe rules");
+$("btnCheck").onclick=()=>runJob({action:"check_update"},"Checking for updates");
+$("btnUpdate").onclick=async()=>{if(await confirmBox("Update agy-delegate?","Fast-forwards the local clone and refreshes the Claude Code marketplace. Restart Claude Code afterwards.","Update"))runJob({action:"update"},"Updating")};
+$("updBadge").onclick=()=>show("updates");
+$("btnModels").onclick=async()=>{try{const{job}=await post({action:"refresh_models"});openDrawer("Refreshing model list");poll(job,loadRouter)}catch(e){toast(e.message)}};
+document.querySelectorAll("[data-win]").forEach(b=>b.onclick=()=>window.pywebview&&window.pywebview.api[b.dataset.win]());
+$("swClaude").onchange=async e=>{try{await post({action:"config",allow_claude_in_agy:e.target.checked});toast(e.target.checked?"Claude models in agy: on":"Claude models in agy: off");loadRouter()}catch(x){e.target.checked=!e.target.checked;toast(x.message)}};
+$("swAuto").onchange=async e=>{try{await post({action:"config",auto_update:e.target.checked});toast(e.target.checked?"Automatic updates on":"Automatic updates off")}catch(x){e.target.checked=!e.target.checked;toast(x.message)}};
+for(const[id,name]of[["swAgy","agy-delegate"],["swCave","caveman"]])$(id).onchange=async e=>{try{await post({action:"toggle",name,on:e.target.checked});toast(`${name} ${e.target.checked?"on":"off"} · restart Claude Code`)}catch(x){e.target.checked=!e.target.checked;toast(x.message)}};
+$("btnLimits").onclick=async()=>{try{await post({action:"config",limits:{"5h":$("l5h").value,"24h":$("l24h").value,"7d":$("l7d").value}});toast("Budgets saved");loadStats()}catch(e){toast(e.message)}};
+
+let start=location.hash.slice(1)||"overview";if(!location.hash)try{start=localStorage.getItem("agy-tab")||start}catch(e){}
+addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(tabs.some(b=>b.dataset.tab===h))show(h)});
+show(tabs.some(b=>b.dataset.tab===start)?start:"overview");
+loadStats();loadStatus();setInterval(loadStats,3000);setInterval(loadStatus,30000);
+</script></body></html>

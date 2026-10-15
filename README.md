@@ -1,65 +1,118 @@
-# agy-delegate
+<p align="center"><img src="assets/icon-256.png" width="112" alt="agy-delegate"></p>
 
-Claude Code plugin: **Antigravity CLI (`agy`, Gemini) as a helper that saves Claude tokens and extends what Claude can do; Claude stays in charge.**
-Claude proactively offloads bulk reading, boilerplate, mechanical edits, web search, image and long-context tasks to `agy`, then reviews everything.
+<h1 align="center">agy-delegate</h1>
 
-## One-step installer
+<p align="center">Let Claude Code hand bulk reading and mechanical work to the Antigravity CLI (<code>agy</code>), so Claude's
+quota goes to the work that needs Claude. Claude stays in charge and reviews everything.</p>
 
-    ./install.sh                 # macOS / Linux
-    powershell -ExecutionPolicy Bypass -File install.ps1   # Windows
+<p align="center">
+<a href="https://github.com/TenTemujin/delegate/actions/workflows/ci.yml"><img src="https://github.com/TenTemujin/delegate/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+<a href="https://github.com/TenTemujin/delegate/releases/latest"><img src="https://img.shields.io/github/v/release/TenTemujin/delegate" alt="release"></a>
+</p>
 
-Installs `agy` if missing, merges safe permissions, registers this folder (or `--repo owner/name` / `-Repo owner/name`) as a Claude Code marketplace and enables the plugin. `--uninstall` / `-Uninstall` reverts. Restart Claude Code afterwards. Windows uses `agy-run.ps1` (same router/log/JSON-status logic as the Bash wrapper, but untested: no PowerShell on the dev machine). Uninstall reverts only what the installer added (state in `~/.agy-delegate/install-state.json`); the RTK hook needs `rtk init -g --uninstall`.
+## Install
 
-## Measured (surface_mom.rs, 98 KB, count pub fn / tests + one-line purposes)
-- Claude reading the file: ~24k tokens (bytes/4 estimate). Via agy: ~0.06k prompt + ~0.8k output, about 96% fewer tokens.
-- Accuracy: counts matched `grep` ground truth in 4/4 runs (49 pub fn, 20 tests); 80-120 s per run.
-- Headless agy auto-denies commands outside the allowlist (python, awk, pipes). The wrapper prepends a constraint so it uses grep/wc/file-view; without it 2 of 3 runs failed.
+**Desktop app (recommended).** Download from the [latest release](https://github.com/TenTemujin/delegate/releases/latest):
 
-## Install manually (any machine)
+| Platform | File | First launch |
+|---|---|---|
+| Windows 10 / 11 | `agy-delegate-windows-x64.exe` | SmartScreen may warn (unsigned): *More info → Run anyway* |
+| macOS | `agy-delegate-macos.zip` | Unzip, move to Applications, right-click → *Open* the first time (unsigned) |
 
-    /plugin marketplace add <your-github-user>/agy-delegate-plugin
+Open it and press **Install everything**. That installs `agy` if it is missing (Google's official installer), applies
+read-only safety rules to it, and enables the plugin in Claude Code. Restart Claude Code. If `agy` has never been signed
+in, run `agy` once in a terminal.
+
+Checksums for every file are in `SHA256SUMS` on the release page.
+
+**From a clone (any OS, needs Python 3.8+).**
+
+    ./install.sh                                            # macOS / Linux
+    powershell -ExecutionPolicy Bypass -File install.ps1    # Windows
+
+Then `python3 app.py` opens the app. On first run it sets up its window runtime (pywebview) in a private venv under
+`~/.agy-delegate/venv`; if that is not possible it opens the same panel in the browser.
+
+**Inside Claude Code only.**
+
+    /plugin marketplace add TenTemujin/delegate
     /plugin install agy-delegate@agy-delegate-marketplace
-    /agy-delegate:setup        # installs agy if missing + merges safe permissions
+    /agy-delegate:setup
 
-Then run `agy` once in a terminal to sign in with Google (browser), if not already logged in.
-Requires macOS/Linux, `curl`, `python3`, and a Google account with Antigravity access.
+## The app
 
-## Safety defaults
-- Read-only (`--mode plan`) unless Claude passes `-w`; never `--dangerously-skip-permissions`.
-- `agy` permissions: read-only commands (`ls cat head tail grep rg wc pwd git status/diff/log`) allowed; `find` and `sed -n` are deliberately NOT allowed (prefix rules would permit `find -delete/-exec`, `sed w`); `--mode plan` is not a sandbox; `rm`, `sudo`, `git push/commit/reset/checkout/clean`, `curl`, `wget` denied.
-- Gemini models only (Claude models inside agy don't save tokens), output capped at 20 KB.
-- Claude must review all output: `agy` can invent facts. Never used for numerical results, validation verdicts or git.
+A translucent, native window (Windows 11 acrylic, Windows 10 rounded glass, macOS vibrancy):
 
-## Layout
-    .claude-plugin/marketplace.json
-    plugins/agy-delegate/
-      .claude-plugin/plugin.json
-      skills/agy-delegate/{SKILL.md, scripts/agy-run.sh}
-      commands/setup.md
-      scripts/setup.sh
+- **Overview**: Claude Code tokens per 5 h / 24 h / 7 d window (local estimate from transcripts; bars appear when you
+  set a budget), tokens saved by delegation, per-model share, helper outcomes.
+- **Activity**: every delegated call with model, status, duration, helper tokens and estimated saving.
+- **Components**: plugin switches (same as `/plugin`), agy status, safety rules, install / uninstall.
+- **Router**: which model each kind of task goes to right now, and every model agy offers with its record.
+- **Updates**: checks GitHub once a day; one click to update, or automatic.
+- **Settings**: token budgets, Claude-models-inside-agy switch, every file the tool touches.
 
-Override the model with `AGY_DELEGATE_MODEL`. Unofficial; not affiliated with Google or Anthropic.
+It only listens on `127.0.0.1`, rejects other `Host` headers, and requires a per-launch token for any change.
 
-## Optional add-ons (third-party, off by default)
-| Add-on | Flag | What it does | Status here |
-|---|---|---|---|
-| [caveman](https://github.com/JuliusBrussee/caveman) | `--with-caveman` / `-WithCaveman` | Terser Claude replies (output tokens) | Registration tested; savings NOT measured by this project. Independent reports cite ~15-25% real savings, not the advertised 65-75%. |
-| [rtk](https://github.com/rtk-ai/rtk) | `--with-rtk` / `-WithRtk` | Compresses CLI output before it reaches the model (hook) | NOT validated here (binary download was blocked in the dev session). Adds a PreToolUse hook via `rtk init -g`. |
+## How delegation works
 
-Turn components on/off later with `./toggle.sh` (menu) or `./toggle.sh off caveman`; Windows: `toggle.ps1`. Restart Claude Code to apply. rtk's hook is removed with rtk's own uninstall, not this toggle.
+The skill tells Claude when to delegate (large reads, summaries, mechanical edits, web lookups, side jobs) and when
+not to (anything numerical, validation verdicts, git, small tasks). Claude calls the wrapper:
 
-## Monitor widget
-Quick launch: `./open-monitor.sh` (macOS: double-click `Monitor.command`; Windows: `open-monitor.bat`, untested). It starts the server if needed and opens the browser; `./open-monitor.sh --stop` stops it. Manual: `python3 monitor.py` then open http://127.0.0.1:8765 (stdlib only, localhost). Shows Claude Code tokens per model (from local transcripts, last 24 h) and agy helper calls (logged by `agy-run.sh` to `~/.agy-delegate/usage.jsonl`), each with an "operating" indicator. Tested: the agy indicator went active during a call and idle afterwards.
+    agy-run.sh  -a extract -b 98000 "List every public function in src/solver.rs with a one-line purpose"
+    agy-run.ps1 -Kind extract -Bytes 98000 "..."      # Windows
 
-## Research mode
-`agy-run.sh -r` (PowerShell: `-Research`) prepends `references/research-profile.md` (epistemic labels, no fabricated references, IEEE, English). Test: Mie-theory references came back with correct, Crossref-verified DOIs; agy's "Confirmed" labels are still leads, Claude re-checks.
+The **router** picks the model by task kind, using every model agy offers:
 
-### Usage windows
-The widget also shows rolling 5 h / 24 h / 7 d totals (new tokens = in + out + cache write; cache reads shown separately because they are billed at a fraction). These are local estimates from transcripts: Anthropic's official 5 h/weekly percentages are server-side. Set `AGY_MONITOR_LIMIT_5H` / `AGY_MONITOR_LIMIT_24H` (daily) / `AGY_MONITOR_LIMIT_7D` (weekly), in tokens, to get a percentage bar for each window against your own budget. A **Claude tokens saved** card estimates what delegation avoided per window: (bytes Claude would have read, from `-b`, or agy input tokens minus its ~12.7k fixed overhead) minus (prompt + answer returned), only for `ok` calls. It is a heuristic, not a measurement: see docs/BENCHMARK.md for what it does and does not mean (helper tokens are spent on Gemini, not Claude).
+| kind | for | ladder |
+|---|---|---|
+| `quick` | file lists, one search, yes/no | Flash low → medium → high |
+| `extract` | counts, names, values from big files | Flash medium → high → Claude / GPT-OSS fallbacks |
+| `summarize` | summaries, overviews, doc drafts | Flash medium → high → Sonnet fallbacks |
+| `edit` | mechanical edits, boilerplate (`-w`) | Flash medium → high → Sonnet / Opus fallbacks |
+| `reason` | tracing logic, explaining behaviour | Flash high → Sonnet high → Opus high |
 
-## Model router
-`agy-run.sh -a extract|summarize|edit|reason` picks the model via `scripts/router.py`, adapting to the usage log (escalates when a model's failure rate >30% over ≥3 calls; below 6 KB it answers "do it in Claude"). Tests: `test_router.py`, `bash test_wrapper.sh` (fake agy: exit codes, statuses, routing, escalation) in the scripts folder and `python3 test_monitor.py`; real-agy benchmark: `benchmark.py`.
+It skips a model agy does not offer, climbs when a model fails more than 30% of its last calls, and parks a model
+whose provider quota is exhausted until the reported reset. Below 6 KB of input it answers "stay in Claude" (exit 3):
+the round trip would cost more than it saves. The order comes from the [benchmark](docs/BENCHMARK.md).
 
-Benchmark behind the policy: 27 real calls (3 models x 3 counting tasks x 3 reps, independent ground truth) in [docs/BENCHMARK.md](docs/BENCHMARK.md). flash-medium and flash-high were 9/9 correct; flash-low was 6/9 (wrong with status `ok`), so `extract` starts on flash-medium. An earlier single-task run (`ewald.rs`, n=1) found gpt-oss-120b returning a plan instead of an answer and claude-* inside agy possibly using Claude quota: neither is routed.
+## Safety
 
-This is a heuristic starting policy, not a quality ranking: one task type, a small sample. The router only reacts to logged `denied`/`empty` outcomes, not to answer correctness.
+- Read-only by default (`--mode plan`); edits only with `-w`, on a branch, reviewed with `git diff`.
+  Never `--dangerously-skip-permissions`.
+- agy 1.3.6 matches permission rules against the **exact** command string (verified: `command(cat)` does not allow
+  `cat README.md`), so headless agy cannot run shell commands with arguments. The wrapper has the helper use agy's
+  built-in file tools instead. Deny rules for `rm`, `git push/commit/reset/checkout/clean`, `curl`, `wget`, `sudo` are
+  still installed as a second line.
+- Output capped at 20 KB. Claude treats it as an untrusted draft and spot-checks it; never for numbers, verdicts or git.
+- Install is reversible: every settings key it changes is recorded with its previous value
+  (`~/.agy-delegate/install-state.json`) and restored by Uninstall. Settings that are not valid JSON are never touched.
+
+## Measured
+
+- Accuracy and the model ladder: [docs/BENCHMARK.md](docs/BENCHMARK.md) (fixed fixtures, ground truth computed
+  before any call, every miss listed).
+- Claude-side savings on a real 229 KB file: ~57k tokens read directly vs ~0.5k delegated ([docs/VALIDATION.md](docs/VALIDATION.md)).
+  Helper tokens are spent on Antigravity, not Claude, and are not comparable 1:1 in cost.
+
+## Development
+
+    python plugins/agy-delegate/scripts/test_agyctl.py                    # installer core
+    python plugins/agy-delegate/skills/agy-delegate/scripts/test_router.py
+    python test_monitor.py && python test_panel.py
+    bash plugins/agy-delegate/skills/agy-delegate/scripts/test_wrapper.sh # fake agy
+    powershell -File plugins/agy-delegate/skills/agy-delegate/scripts/test_wrapper.ps1
+    bash tests/test_installers.sh                                         # real installers, temp home
+    python bench/benchmark.py --models all --reps 3 --md docs/BENCHMARK.md   # real agy, uses quota
+    python -m pip install -r packaging/requirements.txt && python packaging/build.py   # app + self-test
+
+CI runs all of the above (except the benchmark) on Linux, macOS and Windows; pushing a `v*` tag builds both apps,
+self-tests them and publishes a release with `SHA256SUMS`.
+
+Layout: `app.py` (window) · `panel.py` + `panel.html` (UI server) · `monitor.py` (usage data) ·
+`plugins/agy-delegate/` (Claude Code plugin: skill, wrappers, router, `scripts/agyctl.py` installer core) ·
+`bench/` · `packaging/` · `tests/`.
+
+Optional third-party add-ons, off by default and not validated here: [caveman](https://github.com/JuliusBrussee/caveman)
+(`--with-caveman`) and [rtk](https://github.com/rtk-ai/rtk) (`--with-rtk`).
+
+Unofficial; not affiliated with Google or Anthropic. MIT license.

@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Local usage widget: Claude Code tokens per model (from session transcripts) + agy helper calls
 (from ~/.agy-delegate/usage.jsonl), with a live "operating" indicator.
-Run: python3 monitor.py [--port 8765]   then open http://127.0.0.1:8765  (stdlib only, localhost only)."""
+Data layer of the control panel (panel.py). `python3 monitor.py --once` prints a JSON snapshot."""
 import calendar, glob, json, os, sys, time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 CLAUDE = os.path.join(os.environ.get("CLAUDE_CONFIG_DIR", os.path.expanduser("~/.claude")), "projects")
 AGYLOG = os.environ.get("AGY_DELEGATE_LOG", os.path.expanduser("~/.agy-delegate/usage.jsonl"))
@@ -47,68 +46,76 @@ def claude_stats(now):
                 r[0] += i; r[1] += o; r[2] += cr; r[3] += cw; r[4] += 1
     return agg, last, win
 
-AGY_BASE_TOKENS = 12700  # agy's fixed system/tool overhead per call (measured: a 1-word prompt reports ~12.7k input tokens)
-
 def saved_tokens(e):
     """Estimated Claude-side tokens avoided by one successful delegation: what Claude would have read
-    (src_bytes/4, or agy input tokens beyond its fixed overhead when the caller gave no -b) minus what
-    it actually received (prompt + answer, bytes/4). Heuristic, never negative."""
+    (src_bytes/4, known only when the caller passed -b) minus what it actually received (prompt + answer, bytes/4).
+    Returns None when the source size is unknown: agy's own input tokens include its tool context and internal
+    steps, so they are not a proxy for what Claude would have read. Heuristic, never negative."""
     if e.get("status") != "ok": return 0
-    src = e.get("src_bytes", 0) / 4 or max(0, e.get("in_tokens", 0) - AGY_BASE_TOKENS)
-    return max(0, int(src - (e.get("prompt_bytes", 0) + e.get("out_bytes", 0)) / 4))
+    if not e.get("src_bytes"): return None
+    return max(0, int((e["src_bytes"] - e.get("prompt_bytes", 0) - e.get("out_bytes", 0)) / 4))
+
+def read_log():
+    """Valid rows of the usage log; malformed lines (partial writes, other encodings) are skipped."""
+    try:
+        with open(AGYLOG, encoding="utf-8-sig", errors="replace") as f:
+            for line in f:
+                try: e = json.loads(line)
+                except ValueError: continue
+                if isinstance(e, dict) and e.get("ev") in ("start", "end") and "id" in e and isinstance(e.get("ts"), (int, float)): yield e
+    except OSError: return
 
 def agy_stats(now):
     open_calls, models = {}, {}
-    saved = {"5h": 0, "24h": 0, "7d": 0}
+    saved = {"5h": 0, "24h": 0, "7d": 0}; unestimated = {"5h": 0, "24h": 0, "7d": 0}
     spans = {"5h": 5 * 3600, "24h": 24 * 3600, "7d": 7 * 24 * 3600}
-    try:
-        for line in open(AGYLOG):
-            try: e = json.loads(line)
-            except ValueError: continue
-            if e["ev"] == "start": open_calls[e["id"]] = e
-            else:
-                open_calls.pop(e["id"], None)
-                sv = saved_tokens(e)
-                for k, span in spans.items():
-                    if now - e["ts"] <= span: saved[k] += sv
-                if now - e["ts"] <= WINDOW:
-                    r = models.setdefault(e["model"], {"calls": 0, "ok": 0, "denied": 0, "failed": 0, "out_bytes": 0, "dur_s": 0, "in_tokens": 0, "out_tokens": 0})
-                    r["calls"] += 1; r["ok"] += e["status"] == "ok"; r["denied"] += e["status"] == "denied"
-                    r["failed"] += e["status"] not in ("ok", "denied")   # error / empty
-                    r["out_bytes"] += e["out_bytes"]; r["dur_s"] += e["dur_s"]
-                    r["in_tokens"] += e.get("in_tokens", 0); r["out_tokens"] += e.get("out_tokens", 0)
-    except OSError: pass
+    for e in read_log():
+        if e["ev"] == "start": open_calls[e["id"]] = e; continue
+        open_calls.pop(e["id"], None)
+        sv = saved_tokens(e)
+        for k, span in spans.items():
+            if now - e["ts"] <= span:
+                if sv is None: unestimated[k] += 1
+                else: saved[k] += sv
+        if now - e["ts"] <= WINDOW:
+            st = e.get("status", "error")
+            r = models.setdefault(e.get("model", "?"), {"calls": 0, "ok": 0, "denied": 0, "failed": 0, "out_bytes": 0, "dur_s": 0, "in_tokens": 0, "out_tokens": 0})
+            r["calls"] += 1; r["ok"] += st == "ok"; r["denied"] += st == "denied"
+            r["failed"] += st not in ("ok", "denied")   # error / empty
+            r["out_bytes"] += e.get("out_bytes", 0); r["dur_s"] += e.get("dur_s", 0)
+            r["in_tokens"] += e.get("in_tokens", 0); r["out_tokens"] += e.get("out_tokens", 0)
     running = [c for c in open_calls.values() if now - c["ts"] < 900]  # ignore stale starts (>15 min)
-    return models, running, saved
+    return models, running, saved, unestimated
+
+def recent_calls(n=40):
+    """Last n finished calls, newest first, with the per-call saving estimate (None = not estimated)."""
+    ends = [e for e in read_log() if e["ev"] == "end"][-n:]
+    keys = ("ts", "model", "status", "dur_s", "in_tokens", "out_tokens", "src_bytes", "out_bytes")
+    return [dict({k: e.get(k) for k in keys}, saved=saved_tokens(e)) for e in reversed(ends)]
 
 def limits():
-    """Optional quotas in new tokens (in+out+cache write) per window: AGY_MONITOR_LIMIT_5H / _24H (daily) / _7D (weekly)."""
-    def env(k):
-        try: return max(0, int(os.environ.get(k, 0)))
-        except ValueError: return 0
-    return {"5h": env("AGY_MONITOR_LIMIT_5H"), "24h": env("AGY_MONITOR_LIMIT_24H"), "7d": env("AGY_MONITOR_LIMIT_7D")}
+    """Optional quotas in new tokens (in+out+cache write) per window. Env AGY_MONITOR_LIMIT_5H / _24H / _7D wins over
+    "limits" in ~/.agy-delegate/config.json (set from the control panel)."""
+    try:
+        with open(os.path.join(os.environ.get("AGY_DELEGATE_HOME") or os.path.expanduser("~"), ".agy-delegate", "config.json"), encoding="utf-8-sig") as f:
+            cfg = json.load(f).get("limits") or {}
+    except (OSError, ValueError, AttributeError): cfg = {}
+    def get(k, env):
+        for v in (os.environ.get(env), cfg.get(k) if isinstance(cfg, dict) else None):
+            try:
+                if v not in (None, ""): return max(0, int(v))
+            except (TypeError, ValueError): return 0
+        return 0
+    return {"5h": get("5h", "AGY_MONITOR_LIMIT_5H"), "24h": get("24h", "AGY_MONITOR_LIMIT_24H"), "7d": get("7d", "AGY_MONITOR_LIMIT_7D")}
 
 def snapshot():
     now = time.time()
-    claude, last, win = claude_stats(now); agy, running, saved = agy_stats(now)
+    claude, last, win = claude_stats(now); agy, running, saved, unest = agy_stats(now)
     return {"now": now, "claude": claude, "windows": win,
             "limits": limits(),
             "claude_active": now - last < 60, "claude_last_s": now - last if last else None,
-            "agy": agy, "saved": saved, "agy_running": [{"model": c["model"], "age_s": now - c["ts"]} for c in running]}
-
-PAGE = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "monitor.html")).read() if os.path.exists(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "monitor.html")) else "monitor.html missing"
-
-class H(BaseHTTPRequestHandler):
-    def do_GET(self):
-        if self.path.startswith("/api/stats"): body, ct = json.dumps(snapshot()).encode(), "application/json"
-        else: body, ct = PAGE.encode(), "text/html; charset=utf-8"
-        self.send_response(200); self.send_header("Content-Type", ct); self.send_header("Cache-Control", "no-store")
-        self.end_headers(); self.wfile.write(body)
-    def log_message(self, *a): pass
+            "agy": agy, "saved": saved, "saved_unestimated": unest, "agy_running": [{"model": c["model"], "age_s": now - c["ts"]} for c in running]}
 
 if __name__ == "__main__":
-    port = int(sys.argv[sys.argv.index("--port") + 1]) if "--port" in sys.argv else 8765
     if "--once" in sys.argv: print(json.dumps(snapshot(), indent=2)); sys.exit()
-    print(f"agy-delegate monitor: http://127.0.0.1:{port}  (Ctrl-C to stop)")
-    ThreadingHTTPServer(("127.0.0.1", port), H).serve_forever()
+    import panel; panel.main(sys.argv[1:] + ["--no-open"])   # the monitor now lives in the control panel

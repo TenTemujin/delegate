@@ -20,15 +20,17 @@ Do it yourself if the task is under ~5 tool calls, or needs judgment or exact re
 Final numerical results/benchmarks, validation verdicts, git commit/push/PR, deleting files, anything on the main branch.
 
 ## How
-Run `scripts/agy-run.sh` from this skill's base directory (shown when the skill loads):
+Run `scripts/agy-run.sh` (Windows: `scripts/agy-run.ps1`) from this skill's base directory (shown when the skill loads):
 
     agy-run.sh [-w] [-r] [-a KIND] [-b BYTES] [-m model] [-t timeout] [-d dir] "prompt"
+    agy-run.ps1 [-Write] [-Research] [-Kind KIND] [-Bytes N] [-Model m] [-Timeout 5m] [-Dir d] "prompt"
 
-- Exit codes: `0` ok · `1` agy error/denied/empty (output explains) · `3` router says stay in Claude (nothing delegated: do the task yourself) · `127` agy missing.
+- Exit codes: `0` ok · `1` agy error/denied/empty/quota (output explains) · `3` router says stay in Claude (nothing delegated: do the task yourself) · `127` agy missing.
 - Default: read-only (`--mode plan`), model `gemini-3.8-flash-medium`, 5 min timeout, output capped at 20 KB.
 - `-w` allows edits (`accept-edits`); use only on a branch/worktree, then review `git diff`.
-- Use Gemini models. Avoid `claude-*` models inside agy (no saving; may draw on Claude quota).
-- `-m gemini-3.8-flash-high` for harder reasoning. Independent jobs can run in parallel (background Bash).
+- Prefer `-a KIND` (router) over `-m`. Independent jobs can run in parallel (background Bash).
+- The helper cannot run shell commands headless (agy allow-rules match only an exact command string); the wrapper
+  tells it to use its built-in file tools. Do not ask it to "run grep"; ask for the answer.
 - If agy is missing or unauthenticated, tell the user to run `/agy-delegate:setup`.
 
 ## Briefing template (agy has no context — be explicit)
@@ -48,4 +50,21 @@ Use `agy-run.sh -r` so the profile in `references/research-profile.md` is prepen
 - Reply to the user in English, IEEE citations, claims labelled established / reported / inference.
 
 ## Model router (`-a KIND`)
-Prefer `agy-run.sh -a <extract|summarize|edit|reason>` over picking a model by hand: `scripts/router.py` returns the model for the task kind (extract/summarize/edit→flash-medium, reason→flash-high; flash-low is not a default start: it miscounted in the benchmark) and escalates one rung when a model's logged failure rate (error/denied/empty, from agy's exit code and JSON status) exceeds 30% over ≥3 calls. Pass `-b <bytes of the files the helper will read>`: below 6 KB the wrapper exits 3 ("stay in Claude") without calling agy. Without `-b` no size gate applies. `-m` always overrides. Do not route to `gpt-oss-*` (returned a plan instead of the answer) or `claude-*` models inside agy (may use Claude quota).
+Always pass `-a <kind>` and `-b <bytes of the files the helper will read>`:
+
+| kind | use for | ladder (first offered rung is used; climbs on failures) |
+|---|---|---|
+| `quick` | trivial lookups: file lists, one search, yes/no facts | flash-low → flash-medium → flash-high |
+| `extract` | counts, names, values from large files | flash-medium → flash-high → Claude/OSS fallbacks |
+| `summarize` | summaries, module overviews, doc drafts | flash-medium → flash-high → Sonnet fallbacks |
+| `edit` | mechanical edits, boilerplate, docstrings (`-w`) | flash-medium → flash-high → Sonnet / Opus fallbacks |
+| `reason` | tracing logic, explaining behaviour | flash-high → Sonnet high → Opus high |
+
+- Below 6 KB (`-b`) the wrapper exits 3 ("stay in Claude") without calling agy. `-m` always overrides.
+- A rung is skipped when its logged failure rate (error / denied / empty) is over 30% across ≥ 3 calls in 7 days,
+  and while its provider quota is exhausted (HTTP 429, parked until the reported reset).
+- Claude and GPT-OSS models inside agy draw on a small Antigravity quota (observed: agy returned "Individual quota
+  reached ... resets in 4h46m" after ~20 calls while Claude Code kept working; whether it also counts against a Claude
+  plan is not verified). They are fallbacks, never first rungs; the user can turn Claude-in-agy off in the panel.
+- `-b` is also what makes the "tokens saved" meter count a call; without it the call is logged as "not estimated".
+- Router order comes from `bench/benchmark.py` (docs/BENCHMARK.md). It cannot see wrong answers, only failures.
