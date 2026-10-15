@@ -119,11 +119,14 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, {"error": "not found"})
 
     def do_POST(self):
+        try: n = max(0, int(self.headers.get("Content-Length", 0)))
+        except ValueError: n = 0
+        if n > 65536: return self._send(413, {"error": "body too large"})
+        body = self.rfile.read(n)   # always drain the body first: answering early makes some clients see a reset
         if not self._host_ok(): return self._send(403, {"error": "bad host"})
         if not secrets.compare_digest(self.headers.get("X-Agy-Token", ""), TOKEN): return self._send(403, {"error": "bad token"})
         try:
-            n = int(self.headers.get("Content-Length", 0))
-            p = json.loads(self.rfile.read(min(n, 65536)) or b"{}")
+            p = json.loads(body or b"{}")
             if not isinstance(p, dict): raise ValueError
         except ValueError: return self._send(400, {"error": "bad json"})
         a = p.get("action")

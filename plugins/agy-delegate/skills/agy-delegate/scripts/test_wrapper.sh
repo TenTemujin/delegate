@@ -22,7 +22,7 @@ FAKE
 chmod +x "$T/bin/agy"; export FAKE_ARGS="$T/args"
 PYT=python3; python3 -c "" 2>/dev/null || PYT=python
 pass=0; fail=0
-chk() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1)); echo "FAIL $1: got [$2] want [$3]"; fi; }
+chk() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1)); echo "FAIL $1: got [$2] want [$3]"; sed 's/^/    stderr: /' "$T/err" 2>/dev/null | head -5; fi; }
 last() { "$PYT" -c "import json,sys;print(json.loads(open(sys.argv[1]).read().splitlines()[-1])[sys.argv[2]])" "$AGY_DELEGATE_LOG" "$1"; }
 run() { FAKE_MODE=$1 bash "$W" "${@:2}" >"$T/out" 2>"$T/err"; echo $?; }
 
