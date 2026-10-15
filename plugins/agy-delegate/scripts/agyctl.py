@@ -270,7 +270,8 @@ def _update_app(log):
         os.replace(exe, old); shutil.move(new, exe)   # a running exe can be renamed, not overwritten
         log("installed: restart agy-delegate to use the new version"); return True
     dl = os.path.join(home(), "Downloads", name); shutil.move(new, dl)
-    log(f"saved to {dl}: unzip it and replace the app in Applications"); subprocess.run(["open", "-R", dl]); return True
+    log(f"MANUAL STEP: verified download saved to {dl}, NOT installed. Unzip it and replace the app in Applications.")
+    subprocess.run(["open", "-R", dl]); return True
 
 def apply_update(log=print):
     """Fast-forward the local clone (never discards local changes), then refresh the Claude Code marketplace.

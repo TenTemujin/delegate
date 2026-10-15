@@ -161,6 +161,7 @@ def running(port):
 def maybe_auto_update():
     if not agyctl.config().get("auto_update"): return
     u = agyctl.check_update()
+    if agyctl.FROZEN and os.name != "nt": return   # macOS cannot self-replace: never re-download on every start
     if u.get("available"): JOBS.start("auto-update", lambda log: agyctl.apply_update(log=log))
 
 def main(argv=None):

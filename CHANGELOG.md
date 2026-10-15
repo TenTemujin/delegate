@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- Router: when every model of a kind is out of quota, or the catalog is known but offers none of the kind's models,
+  `choose` now returns `claude` with the reason instead of repeating a model that cannot run.
+- Updater (macOS): the log says plainly that the verified download is not installed (manual step), and auto-update
+  no longer re-downloads on every start there.
+- Panel: shows the reason when the router says to stay in Claude.
+
 ## [0.2.1] - 2026-10-15
 
 ### Fixed

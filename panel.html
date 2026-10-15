@@ -371,7 +371,7 @@ async function loadStatus(){try{const s=ST=await api("/api/status");
 
 /* router */
 async function loadRouter(){try{const r=await api("/api/router");
- $("choices").innerHTML=Object.entries(r.choices).map(([k,c])=>`<div class="r"><div class="top"><span>${esc(k)} <span class="sub">· ${esc(c.about)}</span></span><span class="mono">${esc(c.model)}</span></div><div class="lad">${c.ladder.map(m=>`<span class="chip ${m===c.model?"ok":""}">${esc(m)}</span>`).join('<span class="sub">→</span>')}</div>${c.why.includes("->")?`<div class="sub">${esc(c.why)}</div>`:""}</div>`).join("");
+ $("choices").innerHTML=Object.entries(r.choices).map(([k,c])=>`<div class="r"><div class="top"><span>${esc(k)} <span class="sub">· ${esc(c.about)}</span></span><span class="mono">${esc(c.model)}</span></div><div class="lad">${c.ladder.map(m=>`<span class="chip ${m===c.model?"ok":""}">${esc(m)}</span>`).join('<span class="sub">→</span>')}</div>${c.why.includes("->")||c.model==="claude"?`<div class="sub">${esc(c.why)}</div>`:""}</div>`).join("");
  $("routerRule").textContent=`Every model agy offers. "router" = in a task ladder, "manual" = only with -m, "off" = disabled in Settings. A model is skipped when it fails > ${Math.round(r.fail_rate*100)}% over ≥ ${r.min_calls} calls (error / denied / empty; wrong answers are not visible to the router). Inputs under ${n(r.min_bytes)} B stay in Claude.`;$("swClaude").checked=r.allow_claude;
  const cat=r.catalog.models,ids=new Set(cat.map(m=>m.id));Object.keys(r.models).forEach(m=>{if(!ids.has(m))cat.push({id:m,name:m,role:"available",note:"seen in your log, not in agy's current list",available:false})});
  const chip={router:"ok",manual:"",off:"warn"};

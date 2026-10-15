@@ -24,12 +24,17 @@ both = {R.F_HIGH: {"calls": 5, "fails": 5, "ok_s": 0}}
 ok(R.choose("reason", 98000, both, ALL, True)[0] == R.LADDERS["reason"][1], "reason climbs to the next model family")
 ok(all(not R.is_claude(R.choose(k, 98000, dead, ALL, False)[0]) for k in R.LADDERS), "Claude-in-agy off: never picked")
 ok(R.choose("extract", 98000, {}, {R.F_HIGH}, True)[0] == R.F_HIGH, "skips models agy does not offer")
-ok(R.choose("extract", 98000, {}, {"something-else"}, True)[0] == R.F_MED, "nothing offered: falls back to first rung")
+ok(R.choose("extract", 98000, {}, {"something-else"}, True)[0] == "claude", "catalog known, nothing eligible: stay in Claude")
+ok(R.ladder("extract", {"something-else"}) == [], "ladder empty when nothing eligible")
+ok(R.choose("extract", 98000, {}, None, True)[0] == R.F_MED, "catalog unknown: assume first rung offered")
 
 import time
 q = {R.F_MED: {"calls": 0, "fails": 0, "ok_s": 0, "quota_until": time.time() + 600}}
 m, why = R.choose("extract", 98000, q, ALL, True)
 ok(m == R.F_HIGH and "quota" in why, "model out of quota is skipped until reset")
+allq = {m: {"calls": 0, "fails": 0, "ok_s": 0, "quota_until": time.time() + 600} for m in R.LADDERS["extract"]}
+m, why = R.choose("extract", 98000, allq, ALL, True)
+ok(m == "claude" and "quota" in why, "all rungs out of quota: stay in Claude")
 q[R.F_MED]["quota_until"] = time.time() - 1
 ok(R.choose("extract", 98000, q, ALL, True)[0] == R.F_MED, "back after the reset")
 with open(R.LOG, "w") as f:
