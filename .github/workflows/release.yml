@@ -21,7 +21,9 @@ jobs:
           v=$(python3 -c "import json;print(json.load(open('plugins/agy-delegate/.claude-plugin/plugin.json'))['version'])")
           [ "v$v" = "${GITHUB_REF_NAME}" ] || { echo "tag ${GITHUB_REF_NAME} != plugin version v$v"; exit 1; }
       - name: Checksums
-        run: cd dist && cat *.sha256 > SHA256SUMS && cat SHA256SUMS
+        run: |
+          cd dist && cat *.sha256 | tr -d '\r' > SHA256SUMS && cat SHA256SUMS
+          sha256sum -c SHA256SUMS   # the published file must verify the published binaries
       - name: Release notes from CHANGELOG
         run: |
           v="${GITHUB_REF_NAME#v}"
