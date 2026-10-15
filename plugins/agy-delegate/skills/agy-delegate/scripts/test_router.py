@@ -1,15 +1,55 @@
 #!/usr/bin/env python3
 """Router checks (no network, no agy). Run: python3 test_router.py"""
-import os, sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import json, os, sys, tempfile
+d = tempfile.mkdtemp()
+os.environ.update(AGY_DELEGATE_LOG=os.path.join(d, "u.jsonl"), AGY_DELEGATE_HOME=d)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import router as R
-ok = lambda m, n: {m: {"calls": n, "fails": 0, "ok_s": 10.0 * n}}
-assert R.choose("extract", 98000, {})[0] == "gemini-3.8-flash-medium"   # low is not a default start (benchmark)
-assert R.choose("summarize", 98000, {})[0] == "gemini-3.8-flash-medium"
-assert R.choose("reason", 98000, {})[0] == "gemini-3.8-flash-high"
-assert R.choose("extract", 2000, {})[0] == "claude"                       # too small to delegate
-bad = {"gemini-3.8-flash-medium": {"calls": 4, "fails": 2, "ok_s": 20.0}}  # 50% failures
-assert R.choose("extract", 98000, bad)[0] == "gemini-3.8-flash-high"       # escalates
-few = {"gemini-3.8-flash-medium": {"calls": 2, "fails": 2, "ok_s": 0.0}}   # too little data
-assert R.choose("extract", 98000, few)[0] == "gemini-3.8-flash-medium"
-assert R.choose("reason", 98000, {"gemini-3.8-flash-high": {"calls": 9, "fails": 9, "ok_s": 0}})[0] == "gemini-3.8-flash-high"  # top rung stays
-print("router tests: 5/5 passed")
+n = 0
+def ok(cond, msg):
+    global n; assert cond, msg; n += 1
+
+ALL = {m for lad in R.LADDERS.values() for m in lad}
+ok(R.choose("extract", 98000, {}, ALL, True)[0] == R.F_MED, "extract starts on flash-medium (flash-low miscounts)")
+ok(R.choose("quick", 98000, {}, ALL, True)[0] == R.F_LOW, "quick starts on flash-low")
+ok(R.choose("reason", 98000, {}, ALL, True)[0] == R.F_HIGH, "reason starts on flash-high")
+ok(R.choose("extract", 2000, {}, ALL, True)[0] == "claude", "too small to delegate")
+bad = {R.F_MED: {"calls": 4, "fails": 2, "ok_s": 20.0}}
+ok(R.choose("extract", 98000, bad, ALL, True)[0] == R.F_HIGH, "climbs past an unreliable rung")
+few = {R.F_MED: {"calls": 2, "fails": 2, "ok_s": 0.0}}
+ok(R.choose("extract", 98000, few, ALL, True)[0] == R.F_MED, "too little data: stays")
+dead = {m: {"calls": 9, "fails": 9, "ok_s": 0} for m in ALL}
+ok(R.choose("reason", 98000, dead, ALL, True)[0] == R.LADDERS["reason"][-1], "top rung stays even when failing")
+both = {R.F_HIGH: {"calls": 5, "fails": 5, "ok_s": 0}}
+ok(R.choose("reason", 98000, both, ALL, True)[0] == R.LADDERS["reason"][1], "reason climbs to the next model family")
+ok(all(not R.is_claude(R.choose(k, 98000, dead, ALL, False)[0]) for k in R.LADDERS), "Claude-in-agy off: never picked")
+ok(R.choose("extract", 98000, {}, {R.F_HIGH}, True)[0] == R.F_HIGH, "skips models agy does not offer")
+ok(R.choose("extract", 98000, {}, {"something-else"}, True)[0] == R.F_MED, "nothing offered: falls back to first rung")
+
+import time
+q = {R.F_MED: {"calls": 0, "fails": 0, "ok_s": 0, "quota_until": time.time() + 600}}
+m, why = R.choose("extract", 98000, q, ALL, True)
+ok(m == R.F_HIGH and "quota" in why, "model out of quota is skipped until reset")
+q[R.F_MED]["quota_until"] = time.time() - 1
+ok(R.choose("extract", 98000, q, ALL, True)[0] == R.F_MED, "back after the reset")
+with open(R.LOG, "w") as f:
+    f.write(json.dumps({"ev": "end", "id": "1", "ts": time.time(), "model": R.F_MED, "status": "quota", "retry_after_s": 300}) + "\n")
+st = R.stats()
+ok(st[R.F_MED]["calls"] == 0 and st[R.F_MED]["quota_until"] > time.time() + 200, "quota logged as a parking, not a failure")
+open(R.LOG, "w").close()
+os.makedirs(os.path.join(d, ".agy-delegate"), exist_ok=True)
+with open(os.path.join(d, ".agy-delegate", "config.json"), "w") as f: json.dump({"allow_claude_in_agy": False}, f)
+ok(not R.is_claude(R.choose("reason", 98000, dead, ALL)[0]), "config switch read when not passed")
+
+fake = lambda: [{"id": R.F_HIGH, "name": "Flash High"}, {"id": "claude-opus-5-5-high", "name": "Opus"},
+                {"id": "gemini-9-pro", "name": "New"}]
+cat = {m["id"]: m for m in R.catalog(refresh=True, fetch=fake)["models"]}
+ok(cat[R.F_HIGH]["role"] == "router" and cat[R.F_HIGH]["available"], "offered ladder model")
+ok(cat["gemini-9-pro"]["role"] == "manual", "unknown model is manual")
+ok(cat["claude-opus-5-5-high"]["role"] == "off", "Claude model off by config")
+ok(not cat[R.F_LOW]["available"], "ladder model agy does not offer is flagged")
+ok(R.offered() == {R.F_HIGH, "claude-opus-5-5-high", "gemini-9-pro"}, "offered() reads the cache")
+ok(R.catalog(fetch=lambda: 1 / 0)["error"] is None, "cached: fetch not called")
+bad = R.catalog(refresh=True, fetch=lambda: (_ for _ in ()).throw(OSError("agy not installed")))
+ok(bad["error"] == "agy not installed" and "gemini-9-pro" in {m["id"] for m in bad["models"]}, "stale cache still shown")
+print(f"router tests: {n} passed")

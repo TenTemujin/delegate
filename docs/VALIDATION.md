@@ -1,6 +1,6 @@
 # Validation: accuracy and token savings
 
-Measured 2026-10-15 with `agy-run.sh -a extract|summarize` (agy 1.3.5, Gemini) on a real
+Measured 2026-10-15 with the 0.1 bash wrapper `agy-run.sh -a extract|summarize` (agy 1.3.5, Gemini) on a real
 Rust/PyO3 repository, against ground truth from `grep`/`ls`.
 
 ## Accuracy (mechanical extraction)
@@ -42,3 +42,5 @@ Ratio about 120x (tokens estimated as bytes/4; treat as order of magnitude).
 ## Not yet validated
 
 Edits with `-w`, `-a reason` tasks and web search were not part of this battery.
+
+The 0.2 re-measurement on fixed fixtures, across every model agy offers, is in [BENCHMARK.md](BENCHMARK.md).

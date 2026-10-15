@@ -1,0 +1,3 @@
+# Build-time only (the desktop app bundles these; end users install nothing).
+pyinstaller==6.21.0
+pywebview==6.2.1

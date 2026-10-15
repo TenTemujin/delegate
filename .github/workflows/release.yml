@@ -1,0 +1,35 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Check version tag matches the plugin version
+        run: |
+          v=$(python3 -c "import json;print(json.load(open('plugins/agy-delegate/.claude-plugin/plugin.json'))['version'])")
+          [ "v$v" = "${GITHUB_REF_NAME}" ] || { echo "tag ${GITHUB_REF_NAME} != plugin version v$v"; exit 1; }
+      - name: Checksums
+        run: cd dist && cat *.sha256 > SHA256SUMS && cat SHA256SUMS
+      - name: Release notes from CHANGELOG
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          awk -v h="## [$v]" 'index($0, h) == 1 {f=1; next} /^## / {f=0} f' CHANGELOG.md > notes.md
+          [ -s notes.md ] || { echo "no CHANGELOG section for $v"; exit 1; }
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" --title "agy-delegate ${GITHUB_REF_NAME}" --notes-file notes.md \
+            dist/agy-delegate-windows-x64.exe dist/agy-delegate-macos.zip dist/SHA256SUMS
