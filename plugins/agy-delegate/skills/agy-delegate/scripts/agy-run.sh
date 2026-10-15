@@ -1,19 +1,23 @@
 #!/bin/bash
 # Claude (controller) -> Antigravity CLI (helper). Read-only by default.
 # Usage: agy-run.sh [-w] [-r] [-m model] [-t timeout] [-d dir] "prompt"
+#   -a KIND  auto-pick model via router.py (extract|summarize|edit|reason); -m overrides
 #   -r  prepend the academic research profile (references/research-profile.md)
 #   -w  allow edits (accept-edits); default is plan (read-only)
 set -euo pipefail
 AGY="$(command -v agy || true)"
 [ -x "$AGY" ] || AGY="$HOME/.local/bin/agy"
 [ -x "$AGY" ] || { echo "agy not found. Run /agy-delegate:setup" >&2; exit 127; }
-MODEL="${AGY_DELEGATE_MODEL:-gemini-3.8-flash-medium}"; MODE="plan"; TMO="5m"; DIR="$PWD"; RESEARCH=0
-while getopts "wrm:t:d:" o; do
-  case $o in w) MODE="accept-edits";; r) RESEARCH=1;; m) MODEL="$OPTARG";; t) TMO="$OPTARG";; d) DIR="$OPTARG";; *) exit 2;; esac
+MODEL="${AGY_DELEGATE_MODEL:-gemini-3.8-flash-medium}"; MODE="plan"; TMO="5m"; DIR="$PWD"; RESEARCH=0; KIND=""
+while getopts "wra:m:t:d:" o; do
+  case $o in w) MODE="accept-edits";; r) RESEARCH=1;; a) KIND="$OPTARG";; m) MODEL="$OPTARG"; MODEL_FORCED=1;; t) TMO="$OPTARG";; d) DIR="$OPTARG";; *) exit 2;; esac
 done
 shift $((OPTIND-1))
 [ $# -ge 1 ] || { echo "missing prompt" >&2; exit 2; }
 cd "$DIR"
+if [ -n "$KIND" ] && [ -z "${MODEL_FORCED:-}" ] && command -v python3 >/dev/null; then
+  R="$(python3 "$(dirname "$0")/router.py" choose --kind "$KIND" 2>/dev/null | cut -f1 || true)"; [ -n "$R" ] && [ "$R" != "claude" ] && MODEL="$R"
+fi
 PREFIX=""
 if [ "$RESEARCH" = 1 ]; then PREFIX="$(cat "$(dirname "$0")/../references/research-profile.md")"$'\n\n'; fi
 PREFIX="${PREFIX}Constraint: read files with your file-view tool or simple grep/rg/wc/head/tail/cat/find/ls commands only (no python, awk, node, pipes or scripts; they are auto-denied in headless mode). "

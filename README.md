@@ -56,3 +56,18 @@ Quick launch: `./open-monitor.sh` (macOS: double-click `Monitor.command`; Window
 
 ### Usage windows
 The widget also shows rolling 5 h / 24 h / 7 d totals (new tokens = in + out + cache write; cache reads shown separately because they are billed at a fraction). These are local estimates from transcripts: Anthropic's official 5 h/weekly percentages are server-side. Set `AGY_MONITOR_LIMIT_5H` / `AGY_MONITOR_LIMIT_7D` (tokens) to get a percentage bar against your own budget.
+
+## Model router
+`agy-run.sh -a extract|summarize|edit|reason` picks the model via `scripts/router.py`, adapting to the usage log (escalates when a model's failure rate >30% over ≥3 calls; below 6 KB it answers "do it in Claude"). Tests: `python3 plugins/agy-delegate/skills/agy-delegate/scripts/test_router.py`.
+
+Benchmark behind the policy (one task, `ewald.rs`, ground truth FNS=20 / TESTS=32, models run in parallel so latencies are noisy, n=1):
+
+| Model | Time | Result |
+|---|---|---|
+| gemini-3.8-flash-low | 65 s (41 s via router, alone) | correct |
+| gemini-3.8-flash-medium | 146 s | correct |
+| gemini-3.8-flash-high | 123 s | correct |
+| claude-sonnet-5-5-low (inside agy) | 19 s | correct, but may use Claude quota: not routed |
+| gpt-oss-120b-medium | 36 s | failed: returned a plan, no answer |
+
+This is a heuristic starting policy, not a quality ranking: one task type, one sample. The router only reacts to logged `denied`/`empty` outcomes, not to answer correctness.

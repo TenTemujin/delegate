@@ -45,3 +45,6 @@ Use `agy-run.sh -r` so the profile in `references/research-profile.md` is prepen
 - Do not delegate derivations, error propagation, convergence studies, or any numerical result.
 - Terse-output add-ons (caveman) should be OFF for this work: they trade away the density/precision of derivations and citations.
 - Reply to the user in English, IEEE citations, claims labelled established / reported / inference.
+
+## Model router (`-a KIND`)
+Prefer `agy-run.sh -a <extract|summarize|edit|reason>` over picking a model by hand: `scripts/router.py` returns the model for the task kind (extract→flash-low, summarize/edit→flash-medium, reason→flash-high) and escalates one rung when a model's logged failure rate (denied/empty) exceeds 30% over ≥3 calls. `router.py choose --kind K --bytes N` answers `claude` (do it yourself) below 6 KB. `-m` always overrides. Do not route to `gpt-oss-*` (returned a plan instead of the answer) or `claude-*` models inside agy (may use Claude quota).
