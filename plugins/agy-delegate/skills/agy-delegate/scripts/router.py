@@ -18,7 +18,7 @@ LADDERS = {   # kind -> models in order of preference (see docs/BENCHMARK.md for
     "quick":     [A_LOW, F_LOW, F_MED, F_HIGH],
     "extract":   [A_MED, F_MED, F_HIGH, "claude-sonnet-5-5-low", "gpt-oss-120b-medium"],
     "summarize": [A_MED, F_MED, F_HIGH, "claude-sonnet-5-5-low", "claude-sonnet-5-5-medium", "claude-opus-5-5-low"],
-    "edit":      [F_MED, A_MED, F_HIGH, "claude-sonnet-5-5-medium", "claude-opus-5-5-medium"],   # edits not measured: keep flash first
+    "edit":      [A_MED, F_MED, F_HIGH, "claude-sonnet-5-5-medium", "claude-opus-5-5-medium"],   # argon first by owner's call (current flagship); edits not benchmarked yet
     "reason":    [A_HIGH, F_HIGH, "claude-sonnet-5-5-high", "claude-opus-5-5-high"],
 }
 KINDS = {

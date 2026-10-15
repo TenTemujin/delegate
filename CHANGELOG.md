@@ -4,7 +4,7 @@
 
 ### Added
 - `gemini-4-argon-{low,medium,high}` in the router ladders: first rung for `quick` (low), `extract`/`summarize`
-  (medium) and `reason` (high); second rung for `edit` (edits are not measured yet). Benchmarked 36/36 correct, median
+  (medium) and `reason` (high); first rung for `edit` too (Gemini 4 is the current flagship; edits are not benchmarked yet). Benchmarked 36/36 correct, median
   14.4-23.4 s and ~18k helper input tokens vs ~28k for flash (`bench/results/2026-10-15-argon.json`). Small, mechanical
   sample: it does not show Argon is better at complex work.
 
