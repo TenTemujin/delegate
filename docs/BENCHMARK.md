@@ -36,7 +36,8 @@ measures wrapper/answer correctness and the mechanism, not the savings on large 
 
 ## Claude-side token estimate (heuristic: bytes/4)
 Over 27 ok calls Claude would have read ~29397 tokens of file content and instead received ~60 tokens of answers:
-~29336 tokens avoided (99.8%). The helper (Gemini) spent 972015 tokens
-for this, ~33x what Claude saved: each agy call carries ~12.7k tokens of fixed overhead.
-So delegation saves Claude quota, not total tokens, and only pays off when the input Claude would read is large
-(roughly > 6 KB, the router's gate). It is not a cost saving across providers.
+~29336 tokens avoided (99.8%). The helper (Gemini) spent 972015 tokens for this, mostly ~12.7k of fixed agy overhead per call. Raw token counts are not
+comparable across providers: Flash-tier tokens are priced far below Claude's (and on a flat Antigravity plan they may
+cost nothing extra per call), so more helper tokens does not mean more cost. This benchmark does not measure money, so the
+total-cost claim is **not demonstrated either way**; what it does show is that Claude's quota is spared. Delegation still has a
+fixed latency cost (~25 s per call) and only pays off on large inputs (roughly > 6 KB, the router's gate).
