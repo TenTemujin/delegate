@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+- `gemini-4-argon-{low,medium,high}` in the router ladders: first rung for `quick` (low), `extract`/`summarize`
+  (medium) and `reason` (high); second rung for `edit` (edits are not measured yet). Benchmarked 36/36 correct, median
+  14.4-23.4 s and ~18k helper input tokens vs ~28k for flash (`bench/results/2026-10-15-argon.json`). Small, mechanical
+  sample: it does not show Argon is better at complex work.
+
+### Changed
+- `offered()` returns an empty set when agy answered with no models (nothing eligible, stay in Claude) and `None`
+  only when the catalog is unknown. An empty answer is re-checked after 5 minutes instead of 24 h.
+
 ### Fixed
 - Router: when every model of a kind is out of quota, or the catalog is known but offers none of the kind's models,
   `choose` now returns `claude` with the reason instead of repeating a model that cannot run.

@@ -72,7 +72,7 @@ try:
 
     s, r = req("GET", "/api/router")
     ok(s == 200 and set(r["choices"]) == set(P.router.LADDERS) and r["choices"]["reason"]["model"].endswith("high")
-       and r["choices"]["extract"]["ladder"][0] == r["choices"]["extract"]["model"] and len(r["catalog"]["models"]) == 3, "router view with ladders")
+       and r["choices"]["extract"]["ladder"][0] == r["choices"]["extract"]["model"] and len(r["catalog"]["models"]) == len(P.router.LADDER), "router view with ladders")
     s, c = req("POST", "/api/action", {"action": "config", "allow_claude_in_agy": False}, token=P.TOKEN)
     lads = req("GET", "/api/router")[1]["choices"]
     ok(s == 200 and not any(m.startswith("claude-") for c in lads.values() for m in c["ladder"]), "Claude-in-agy switch applied")
