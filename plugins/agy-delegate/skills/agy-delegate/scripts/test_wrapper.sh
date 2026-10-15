@@ -4,6 +4,11 @@ cd "$(dirname "$0")"; W="$PWD/agy-run.sh"; T="$(mktemp -d)"; trap 'rm -rf "$T"' 
 mkdir "$T/bin"; export PATH="$T/bin:$PATH" AGY_DELEGATE_LOG="$T/log.jsonl" AGY_DELEGATE_HOME="$T" FAKE_MODE=ok
 cat > "$T/bin/agy" <<'FAKE'
 #!/bin/bash
+if [ "$1" = models ]; then   # catalog the router reads (does not touch FAKE_ARGS)
+  for m in gemini-4-argon-low gemini-4-argon-medium gemini-4-argon-high gemini-3.8-flash-low gemini-3.8-flash-medium gemini-3.8-flash-high; do
+    printf '%s	%s
+' "$m" "$m"; done; exit 0
+fi
 echo "$@" > "$FAKE_ARGS"
 case "$FAKE_MODE" in
   ok)      echo '{"status":"SUCCESS","response":"hello","usage":{"input_tokens":11,"output_tokens":3}}';;
