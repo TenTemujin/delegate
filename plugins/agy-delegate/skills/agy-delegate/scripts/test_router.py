@@ -10,33 +10,33 @@ def ok(cond, msg):
     global n; assert cond, msg; n += 1
 
 ALL = {m for lad in R.LADDERS.values() for m in lad}
-ok(R.choose("extract", 98000, {}, ALL, True)[0] == R.F_MED, "extract starts on flash-medium (flash-low miscounts)")
-ok(R.choose("quick", 98000, {}, ALL, True)[0] == R.F_LOW, "quick starts on flash-low")
-ok(R.choose("reason", 98000, {}, ALL, True)[0] == R.F_HIGH, "reason starts on flash-high")
+ok(R.choose("extract", 98000, {}, ALL, True)[0] == R.A_MED, "extract starts on argon-medium (benchmarked 12/12; flash-low miscounts)")
+ok(R.choose("quick", 98000, {}, ALL, True)[0] == R.A_LOW, "quick starts on argon-low")
+ok(R.choose("reason", 98000, {}, ALL, True)[0] == R.A_HIGH, "reason starts on argon-high")
 ok(R.choose("extract", 2000, {}, ALL, True)[0] == "claude", "too small to delegate")
-bad = {R.F_MED: {"calls": 4, "fails": 2, "ok_s": 20.0}}
-ok(R.choose("extract", 98000, bad, ALL, True)[0] == R.F_HIGH, "climbs past an unreliable rung")
-few = {R.F_MED: {"calls": 2, "fails": 2, "ok_s": 0.0}}
-ok(R.choose("extract", 98000, few, ALL, True)[0] == R.F_MED, "too little data: stays")
+bad = {R.A_MED: {"calls": 4, "fails": 2, "ok_s": 20.0}}
+ok(R.choose("extract", 98000, bad, ALL, True)[0] == R.F_MED, "climbs past an unreliable rung")
+few = {R.A_MED: {"calls": 2, "fails": 2, "ok_s": 0.0}}
+ok(R.choose("extract", 98000, few, ALL, True)[0] == R.A_MED, "too little data: stays")
 dead = {m: {"calls": 9, "fails": 9, "ok_s": 0} for m in ALL}
 ok(R.choose("reason", 98000, dead, ALL, True)[0] == R.LADDERS["reason"][-1], "top rung stays even when failing")
-both = {R.F_HIGH: {"calls": 5, "fails": 5, "ok_s": 0}}
-ok(R.choose("reason", 98000, both, ALL, True)[0] == R.LADDERS["reason"][1], "reason climbs to the next model family")
+both = {R.A_HIGH: {"calls": 5, "fails": 5, "ok_s": 0}, R.F_HIGH: {"calls": 5, "fails": 5, "ok_s": 0}}
+ok(R.choose("reason", 98000, both, ALL, True)[0] == R.LADDERS["reason"][2], "reason climbs to the next model family")
 ok(all(not R.is_claude(R.choose(k, 98000, dead, ALL, False)[0]) for k in R.LADDERS), "Claude-in-agy off: never picked")
 ok(R.choose("extract", 98000, {}, {R.F_HIGH}, True)[0] == R.F_HIGH, "skips models agy does not offer")
 ok(R.choose("extract", 98000, {}, {"something-else"}, True)[0] == "claude", "catalog known, nothing eligible: stay in Claude")
 ok(R.ladder("extract", {"something-else"}) == [], "ladder empty when nothing eligible")
-ok(R.choose("extract", 98000, {}, None, True)[0] == R.F_MED, "catalog unknown: assume first rung offered")
+ok(R.choose("extract", 98000, {}, None, True)[0] == R.A_MED, "catalog unknown: assume first rung offered")
 
 import time
-q = {R.F_MED: {"calls": 0, "fails": 0, "ok_s": 0, "quota_until": time.time() + 600}}
+q = {R.A_MED: {"calls": 0, "fails": 0, "ok_s": 0, "quota_until": time.time() + 600}}
 m, why = R.choose("extract", 98000, q, ALL, True)
-ok(m == R.F_HIGH and "quota" in why, "model out of quota is skipped until reset")
+ok(m == R.F_MED and "quota" in why, "model out of quota is skipped until reset")
 allq = {m: {"calls": 0, "fails": 0, "ok_s": 0, "quota_until": time.time() + 600} for m in R.LADDERS["extract"]}
 m, why = R.choose("extract", 98000, allq, ALL, True)
 ok(m == "claude" and "quota" in why, "all rungs out of quota: stay in Claude")
-q[R.F_MED]["quota_until"] = time.time() - 1
-ok(R.choose("extract", 98000, q, ALL, True)[0] == R.F_MED, "back after the reset")
+q[R.A_MED]["quota_until"] = time.time() - 1
+ok(R.choose("extract", 98000, q, ALL, True)[0] == R.A_MED, "back after the reset")
 with open(R.LOG, "w") as f:
     f.write(json.dumps({"ev": "end", "id": "1", "ts": time.time(), "model": R.F_MED, "status": "quota", "retry_after_s": 300}) + "\n")
 st = R.stats()
@@ -57,4 +57,11 @@ ok(R.offered() == {R.F_HIGH, "claude-opus-5-5-high", "gemini-9-pro"}, "offered()
 ok(R.catalog(fetch=lambda: 1 / 0)["error"] is None, "cached: fetch not called")
 bad = R.catalog(refresh=True, fetch=lambda: (_ for _ in ()).throw(OSError("agy not installed")))
 ok(bad["error"] == "agy not installed" and "gemini-9-pro" in {m["id"] for m in bad["models"]}, "stale cache still shown")
+# empty catalog (agy answered with no models) is not the same as unknown catalog
+cache = os.path.join(d, "models.json")
+R.catalog(refresh=True, fetch=lambda: [])
+ok(R.offered() == set(), "empty catalog: offered() is an empty set, not None")
+ok(R.choose("extract", 98000, {}, None, True)[0] == "claude", "empty catalog: nothing eligible, stay in Claude")
+json.dump({"ts": time.time() - R.EMPTY_TTL - 5, "models": []}, open(cache, "w"))
+ok(R.offered(fetch=lambda: [{"id": R.A_MED, "name": "x"}]) == {R.A_MED}, "empty cache is rechecked after EMPTY_TTL")
 print(f"router tests: {n} passed")

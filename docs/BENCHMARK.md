@@ -87,3 +87,17 @@ Ground truth (computed from the snapshot before any call): `count_functions` = 8
   0.2 prompt (re-run after their quota resets: `--models gpt-oss-120b-medium,claude-sonnet-5-5-low,...`); money cost.
 - Helper tokens (here ~28k input per call, mostly agy's own context) are spent on Antigravity, not on Claude, and are
   not comparable 1:1 with Claude tokens in cost.
+
+## Addendum: Gemini 4 Argon (2026-10-15)
+
+36 calls (3 levels x 4 tasks x 3 reps), same fixtures, run separately (`bench/results/2026-10-15-argon.json`).
+
+| model | correct | median wall s | mean helper in tok | mean helper out tok |
+|---|---|---|---|---|
+| gemini-4-argon-low | 12/12 | 14.6 | 17794 | 209 |
+| gemini-4-argon-medium | 12/12 | 14.4 | 17804 | 303 |
+| gemini-4-argon-high | 12/12 | 23.4 | 18845 | 1030 |
+
+Same four small mechanical tasks as above, so the limits there apply: no edits, no long summaries, no hard reasoning.
+Argon matched flash on accuracy, was faster and used fewer input tokens. That is why it leads the ladders; whether it is
+better on complex tasks is not measured.

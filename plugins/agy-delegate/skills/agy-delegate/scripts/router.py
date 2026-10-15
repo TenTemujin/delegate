@@ -13,12 +13,13 @@ import argparse, json, os, shutil, subprocess, sys, time
 
 LOG = os.environ.get("AGY_DELEGATE_LOG", os.path.expanduser("~/.agy-delegate/usage.jsonl"))
 F_LOW, F_MED, F_HIGH = "gemini-3.8-flash-low", "gemini-3.8-flash-medium", "gemini-3.8-flash-high"
+A_LOW, A_MED, A_HIGH = "gemini-4-argon-low", "gemini-4-argon-medium", "gemini-4-argon-high"
 LADDERS = {   # kind -> models in order of preference (see docs/BENCHMARK.md for the measurements behind each order)
-    "quick":     [F_LOW, F_MED, F_HIGH],
-    "extract":   [F_MED, F_HIGH, "claude-sonnet-5-5-low", "gpt-oss-120b-medium"],
-    "summarize": [F_MED, F_HIGH, "claude-sonnet-5-5-low", "claude-sonnet-5-5-medium", "claude-opus-5-5-low"],
-    "edit":      [F_MED, F_HIGH, "claude-sonnet-5-5-medium", "claude-opus-5-5-medium"],
-    "reason":    [F_HIGH, "claude-sonnet-5-5-high", "claude-opus-5-5-high"],
+    "quick":     [A_LOW, F_LOW, F_MED, F_HIGH],
+    "extract":   [A_MED, F_MED, F_HIGH, "claude-sonnet-5-5-low", "gpt-oss-120b-medium"],
+    "summarize": [A_MED, F_MED, F_HIGH, "claude-sonnet-5-5-low", "claude-sonnet-5-5-medium", "claude-opus-5-5-low"],
+    "edit":      [F_MED, A_MED, F_HIGH, "claude-sonnet-5-5-medium", "claude-opus-5-5-medium"],   # edits not measured: keep flash first
+    "reason":    [A_HIGH, F_HIGH, "claude-sonnet-5-5-high", "claude-opus-5-5-high"],
 }
 KINDS = {
     "quick": "trivial lookups: file lists, one grep, yes/no facts",
@@ -27,10 +28,11 @@ KINDS = {
     "edit": "mechanical edits, boilerplate, docstrings (-w)",
     "reason": "tracing logic, explaining behaviour, multi-step answers",
 }
-LADDER = LADDERS["quick"]   # the Gemini Flash rungs (kept for callers of the v1 API)
+LADDER = LADDERS["quick"]   # kept for callers of the v1 API
 MIN_BYTES = 6000      # below ~5-6 KB the skill overhead exceeds the saving: keep it in Claude
 MIN_CALLS, FAIL_RATE, WINDOW = 3, 0.30, 7 * 24 * 3600
 CATALOG_TTL = 24 * 3600
+EMPTY_TTL = 300
 
 
 def _home(): return os.path.dirname(os.path.abspath(LOG))
@@ -83,7 +85,8 @@ def _cached_catalog(refresh=False, fetch=None):
         with open(cache, encoding="utf-8") as f: c = json.load(f)
     except (OSError, ValueError): c = {}
     err = None
-    if refresh or time.time() - c.get("ts", 0) > CATALOG_TTL or not c.get("models"):
+    ttl = CATALOG_TTL if c.get("models") else EMPTY_TTL   # an empty answer is rechecked soon: it may be a glitch
+    if refresh or "models" not in c or time.time() - c.get("ts", 0) > ttl:
         try:
             c = {"ts": time.time(), "models": (fetch or _fetch_catalog)()}
             os.makedirs(os.path.dirname(cache), exist_ok=True)
@@ -92,9 +95,10 @@ def _cached_catalog(refresh=False, fetch=None):
     return c, err
 
 def offered(fetch=None):
-    """Set of model ids agy offers now (cached), or None when unknown (then every ladder model is assumed offered)."""
+    """Set of model ids agy offers now (cached); an empty set when agy answered with no models (nothing is eligible);
+    None only when the catalog is unknown (never fetched / fetch failed), then every ladder model is assumed offered."""
     c, _ = _cached_catalog(fetch=fetch)
-    return {m["id"] for m in c.get("models", [])} or None
+    return {m["id"] for m in c["models"]} if isinstance(c.get("models"), list) else None
 
 def is_claude(model): return model.startswith("claude-")
 
@@ -124,7 +128,7 @@ def ladder(kind, avail=None, allow_claude=True):
     """The kind's ladder restricted to models agy offers (when known) and to the user's Claude-in-agy setting.
     Empty when no rung is eligible: the caller must stay in Claude, not guess a model agy may not offer."""
     lad = [m for m in LADDERS.get(kind, LADDERS["summarize"]) if allow_claude or not is_claude(m)]
-    if avail: lad = [m for m in lad if m in avail]
+    if avail is not None: lad = [m for m in lad if m in avail]
     return lad
 
 def choose(kind, nbytes=None, st=None, avail=None, allow_claude=None):

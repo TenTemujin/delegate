@@ -4,6 +4,11 @@ cd "$(dirname "$0")"; W="$PWD/agy-run.sh"; T="$(mktemp -d)"; trap 'rm -rf "$T"' 
 mkdir "$T/bin"; export PATH="$T/bin:$PATH" AGY_DELEGATE_LOG="$T/log.jsonl" AGY_DELEGATE_HOME="$T" FAKE_MODE=ok
 cat > "$T/bin/agy" <<'FAKE'
 #!/bin/bash
+if [ "$1" = models ]; then   # catalog the router reads (does not touch FAKE_ARGS)
+  for m in gemini-4-argon-low gemini-4-argon-medium gemini-4-argon-high gemini-3.8-flash-low gemini-3.8-flash-medium gemini-3.8-flash-high; do
+    printf '%s	%s
+' "$m" "$m"; done; exit 0
+fi
 echo "$@" > "$FAKE_ARGS"
 case "$FAKE_MODE" in
   ok)      echo '{"status":"SUCCESS","response":"hello","usage":{"input_tokens":11,"output_tokens":3}}';;
@@ -47,16 +52,16 @@ chk "small stays"   "$(run ok -a extract -b 100 "p")" 3
 chk "agy not called" "$([ -e "$T/args" ] && echo called || echo no)" no
 chk "no log on skip" "$(wc -l < "$AGY_DELEGATE_LOG" | tr -d ' ')" 0
 chk "big delegates" "$(run ok -a extract -b 50000 "p")" 0
-chk "extract->medium" "$(grep -o 'gemini-3.8-flash-[a-z]*' "$T/args" | head -1)" gemini-3.8-flash-medium
+chk "extract->argon-medium" "$(grep -o 'gemini-[a-z0-9.]*-[a-z]*-[a-z]*' "$T/args" | head -1)" gemini-4-argon-medium
 chk "-m wins"       "$(run ok -a extract -b 100 -m gemini-x "p")" 0
 chk "forced model"  "$(grep -o 'gemini-x' "$T/args" | head -1)" gemini-x
 chk "no size = no gate" "$(run ok -a summarize "p")" 0
-chk "summarize med" "$(grep -o 'gemini-3.8-flash-[a-z]*' "$T/args" | head -1)" gemini-3.8-flash-medium
+chk "summarize argon-med" "$(grep -o 'gemini-[a-z0-9.]*-[a-z]*-[a-z]*' "$T/args" | head -1)" gemini-4-argon-medium
 # adaptive escalation from REAL failures recorded by the wrapper
 : > "$AGY_DELEGATE_LOG"
 for i in 1 2 3; do run errzero -a extract -b 50000 "p" >/dev/null; done
 run ok -a extract -b 50000 "p" >/dev/null
-chk "escalated"     "$(grep -o 'gemini-3.8-flash-[a-z]*' "$T/args" | head -1)" gemini-3.8-flash-high
+chk "escalated"     "$(grep -o 'gemini-[a-z0-9.]*-[a-z]*-[a-z]*' "$T/args" | head -1)" gemini-3.8-flash-medium
 # arg safety: prompt with quotes/newlines passes through intact
 run ok 'a "quoted" $HOME
 line2' >/dev/null; chk "prompt intact" "$(grep -c 'line2' "$T/args")" 1

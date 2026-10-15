@@ -54,11 +54,11 @@ Always pass `-a <kind>` and `-b <bytes of the files the helper will read>`:
 
 | kind | use for | ladder (first offered rung is used; climbs on failures) |
 |---|---|---|
-| `quick` | trivial lookups: file lists, one search, yes/no facts | flash-low → flash-medium → flash-high |
-| `extract` | counts, names, values from large files | flash-medium → flash-high → Claude/OSS fallbacks |
-| `summarize` | summaries, module overviews, doc drafts | flash-medium → flash-high → Sonnet fallbacks |
-| `edit` | mechanical edits, boilerplate, docstrings (`-w`) | flash-medium → flash-high → Sonnet / Opus fallbacks |
-| `reason` | tracing logic, explaining behaviour | flash-high → Sonnet high → Opus high |
+| `quick` | trivial lookups: file lists, one search, yes/no facts | argon-low → flash-low → flash-medium → flash-high |
+| `extract` | counts, names, values from large files | argon-medium → flash-medium → flash-high → Claude/OSS fallbacks |
+| `summarize` | summaries, module overviews, doc drafts | argon-medium → flash-medium → flash-high → Sonnet fallbacks |
+| `edit` | mechanical edits, boilerplate, docstrings (`-w`) | flash-medium → argon-medium → flash-high → Sonnet / Opus fallbacks (edits not yet measured) |
+| `reason` | tracing logic, explaining behaviour | argon-high → flash-high → Sonnet high → Opus high |
 
 - Below 6 KB (`-b`) the wrapper exits 3 ("stay in Claude") without calling agy. `-m` always overrides.
 - A rung is skipped when its logged failure rate (error / denied / empty) is over 30% across ≥ 3 calls in 7 days,
