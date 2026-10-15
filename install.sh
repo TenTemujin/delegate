@@ -23,30 +23,51 @@ command -v python3 >/dev/null || { echo "python3 is required (used to merge JSON
 
 CLAUDE_SETTINGS="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
 AGY_SETTINGS="$HOME/.gemini/antigravity-cli/settings.json"
+STATE="$HOME/.agy-delegate/install-state.json"   # records exactly what this installer added, so uninstall reverts only that
 
 merge_claude() { # $1 = install|uninstall
   mkdir -p "$(dirname "$CLAUDE_SETTINGS")"
   [ -f "$CLAUDE_SETTINGS" ] && cp "$CLAUDE_SETTINGS" "$CLAUDE_SETTINGS.agy-bak"
-  python3 - "$CLAUDE_SETTINGS" "$1" "$MKT" "$PLUG" "$ROOT" "$REPO" "$WITH_CAVEMAN" <<'PY'
+  python3 - "$CLAUDE_SETTINGS" "$1" "$MKT" "$PLUG" "$ROOT" "$REPO" "$WITH_CAVEMAN" "$STATE" <<'PY'
 import json, os, sys
-p, action, mkt, plug, root, repo, cav = sys.argv[1:8]
+p, action, mkt, plug, root, repo, cav, state_p = sys.argv[1:9]
+state = json.load(open(state_p)) if os.path.exists(state_p) else {}
 cfg = json.load(open(p)) if os.path.exists(p) and os.path.getsize(p) else {}
 mk, en = cfg.setdefault("extraKnownMarketplaces", {}), cfg.setdefault("enabledPlugins", {})
 if action == "install":
     mk[mkt] = {"source": {"source": "github", "repo": repo} if repo else {"source": "directory", "path": root}}
     en[plug] = True
     if cav == "1":
-        mk["caveman"] = {"source": {"source": "github", "repo": "JuliusBrussee/caveman"}}
-        en["caveman@caveman"] = True
+        if "caveman" not in mk and "caveman@caveman" not in en: state["caveman"] = True   # ours only if absent before
+        mk.setdefault("caveman", {"source": {"source": "github", "repo": "JuliusBrussee/caveman"}})
+        en.setdefault("caveman@caveman", True)
 else:
     mk.pop(mkt, None); en.pop(plug, None)
-    mk.pop("caveman", None); en.pop("caveman@caveman", None)
+    if state.pop("caveman", False):
+        mk.pop("caveman", None); en.pop("caveman@caveman", None)
+    else:
+        print("caveman left untouched (not installed by this installer)")
+os.makedirs(os.path.dirname(state_p), exist_ok=True)
+json.dump(state, open(state_p, "w"), indent=2)
 json.dump(cfg, open(p, "w"), indent=2)
 print(f"{action}: {p}")
 PY
 }
 
-if [ "$UNINSTALL" = 1 ]; then merge_claude uninstall; echo "Removed. Restart Claude Code."; exit 0; fi
+if [ "$UNINSTALL" = 1 ]; then
+  merge_claude uninstall
+  python3 - "$AGY_SETTINGS" "$STATE" <<'PY'
+import json, os, sys
+p, sp = sys.argv[1:3]
+st = json.load(open(sp)) if os.path.exists(sp) else {}
+if os.path.exists(p) and st.get("agy_perms"):
+    cfg = json.load(open(p)); perm = cfg.get("permissions", {})
+    for k in ("allow", "deny"):
+        if k in perm: perm[k] = [x for x in perm[k] if x not in set(st["agy_perms"].get(k, []))]
+    json.dump(cfg, open(p, "w"), indent=2); print("agy permissions added by installer reverted")
+os.path.exists(sp) and os.remove(sp)
+PY
+ echo "(RTK hook, if enabled, must be removed with: rtk init -g --uninstall)"; echo "Removed. Restart Claude Code."; exit 0; fi
 
 if [ "$SKIP_AGY" = 0 ]; then
   if ! command -v agy >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/agy" ]; then
@@ -60,11 +81,20 @@ import json, os, sys
 p = sys.argv[1]
 cfg = json.load(open(p)) if os.path.exists(p) and os.path.getsize(p) else {}
 perm = cfg.setdefault("permissions", {})
-allow = ["ls","cat","head","tail","grep","rg","find","wc","sed -n","pwd","git status","git diff","git log"]
+sp = os.path.expanduser("~/.agy-delegate/install-state.json")
+state = json.load(open(sp)) if os.path.exists(sp) else {}
+allow = ["ls","cat","head","tail","grep","rg","wc","pwd","git status","git diff","git log"]
 deny = ["rm","sudo","git push","git commit","git reset","git checkout","git clean","curl","wget"]
 for k, v in (("allow", allow), ("deny", deny)):
-    perm[k] = sorted(set(perm.get(k, [])) | {f"command({c})" for c in v})
+    new = {f"command({c})" for c in v}
+    added = new - set(perm.get(k, []))
+    perm[k] = sorted(set(perm.get(k, [])) | new)
+    rec = state.setdefault("agy_perms", {}).setdefault(k, [])
+    state["agy_perms"][k] = sorted(set(rec) | added)
 json.dump(cfg, open(p, "w"), indent=2)
+os.makedirs(os.path.dirname(sp), exist_ok=True); json.dump(state, open(sp, "w"), indent=2)
+legacy = [x for x in perm.get("allow", []) if x in ("command(find)", "command(sed -n)")]
+if legacy: print("WARNING: remove broad rules from an older install (they allow find -delete/-exec, sed w):", legacy)
 print("agy permissions merged:", p)
 PY
 fi

@@ -16,7 +16,7 @@ p = sys.argv[1]
 cfg = json.load(open(p)) if os.path.exists(p) and os.path.getsize(p) else {}
 perm = cfg.setdefault("permissions", {})
 allow = ["command(ls)","command(cat)","command(head)","command(tail)","command(grep)","command(rg)",
-         "command(find)","command(wc)","command(sed -n)","command(pwd)","command(git status)",
+         "command(wc)","command(pwd)","command(git status)",
          "command(git diff)","command(git log)"]
 deny = ["command(rm)","command(sudo)","command(git push)","command(git commit)","command(git reset)",
         "command(git checkout)","command(git clean)","command(curl)","command(wget)"]

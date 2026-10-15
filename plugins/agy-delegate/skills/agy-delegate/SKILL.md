@@ -22,8 +22,9 @@ Final numerical results/benchmarks, validation verdicts, git commit/push/PR, del
 ## How
 Run `scripts/agy-run.sh` from this skill's base directory (shown when the skill loads):
 
-    agy-run.sh [-w] [-m model] [-t timeout] [-d dir] "prompt"
+    agy-run.sh [-w] [-r] [-a KIND] [-b BYTES] [-m model] [-t timeout] [-d dir] "prompt"
 
+- Exit codes: `0` ok · `1` agy error/denied/empty (output explains) · `3` router says stay in Claude (nothing delegated: do the task yourself) · `127` agy missing.
 - Default: read-only (`--mode plan`), model `gemini-3.8-flash-medium`, 5 min timeout, output capped at 20 KB.
 - `-w` allows edits (`accept-edits`); use only on a branch/worktree, then review `git diff`.
 - Use Gemini models. Avoid `claude-*` models inside agy (no saving; may draw on Claude quota).
@@ -47,4 +48,4 @@ Use `agy-run.sh -r` so the profile in `references/research-profile.md` is prepen
 - Reply to the user in English, IEEE citations, claims labelled established / reported / inference.
 
 ## Model router (`-a KIND`)
-Prefer `agy-run.sh -a <extract|summarize|edit|reason>` over picking a model by hand: `scripts/router.py` returns the model for the task kind (extract→flash-low, summarize/edit→flash-medium, reason→flash-high) and escalates one rung when a model's logged failure rate (denied/empty) exceeds 30% over ≥3 calls. `router.py choose --kind K --bytes N` answers `claude` (do it yourself) below 6 KB. `-m` always overrides. Do not route to `gpt-oss-*` (returned a plan instead of the answer) or `claude-*` models inside agy (may use Claude quota).
+Prefer `agy-run.sh -a <extract|summarize|edit|reason>` over picking a model by hand: `scripts/router.py` returns the model for the task kind (extract/summarize/edit→flash-medium, reason→flash-high; flash-low is not a default start: it miscounted in the benchmark) and escalates one rung when a model's logged failure rate (error/denied/empty, from agy's exit code and JSON status) exceeds 30% over ≥3 calls. Pass `-b <bytes of the files the helper will read>`: below 6 KB the wrapper exits 3 ("stay in Claude") without calling agy. Without `-b` no size gate applies. `-m` always overrides. Do not route to `gpt-oss-*` (returned a plan instead of the answer) or `claude-*` models inside agy (may use Claude quota).

@@ -2,12 +2,12 @@
 """Model router for agy-delegate. Picks 'claude' (do it yourself) or an agy model per task kind/size,
 adapting to the usage log (~/.agy-delegate/usage.jsonl).
   router.py choose --kind extract|summarize|edit|reason [--bytes N]   -> prints: <model>\t<reason>
-Policy is heuristic (n=1 benchmark, see README); adaptation only escalates/de-escalates on logged outcomes."""
+Policy is heuristic (27-call benchmark, see docs/BENCHMARK.md); adaptation only escalates/de-escalates on logged outcomes."""
 import argparse, json, os, sys, time
 
 LOG = os.environ.get("AGY_DELEGATE_LOG", os.path.expanduser("~/.agy-delegate/usage.jsonl"))
 LADDER = ["gemini-3.8-flash-low", "gemini-3.8-flash-medium", "gemini-3.8-flash-high"]
-BASE = {"extract": 0, "summarize": 1, "edit": 1, "reason": 2}   # starting rung per task kind
+BASE = {"extract": 1, "summarize": 1, "edit": 1, "reason": 2}   # starting rung per task kind (flash-low got 6/9 on counting tasks, see docs/BENCHMARK.md)
 MIN_BYTES = 6000      # below ~5-6 KB the skill overhead exceeds the saving: keep it in Claude
 MIN_CALLS, FAIL_RATE, WINDOW = 3, 0.30, 7 * 24 * 3600
 

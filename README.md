@@ -8,7 +8,7 @@ Claude proactively offloads bulk reading, boilerplate, mechanical edits, web sea
     ./install.sh                 # macOS / Linux
     powershell -ExecutionPolicy Bypass -File install.ps1   # Windows
 
-Installs `agy` if missing, merges safe permissions, registers this folder (or `--repo owner/name` / `-Repo owner/name`) as a Claude Code marketplace and enables the plugin. `--uninstall` / `-Uninstall` reverts. Restart Claude Code afterwards. Windows uses `agy-run.ps1` (untested: no PowerShell on the dev machine).
+Installs `agy` if missing, merges safe permissions, registers this folder (or `--repo owner/name` / `-Repo owner/name`) as a Claude Code marketplace and enables the plugin. `--uninstall` / `-Uninstall` reverts. Restart Claude Code afterwards. Windows uses `agy-run.ps1` (same router/log/JSON-status logic as the Bash wrapper, but untested: no PowerShell on the dev machine). Uninstall reverts only what the installer added (state in `~/.agy-delegate/install-state.json`); the RTK hook needs `rtk init -g --uninstall`.
 
 ## Measured (surface_mom.rs, 98 KB, count pub fn / tests + one-line purposes)
 - Claude reading the file: ~24k tokens (bytes/4 estimate). Via agy: ~0.06k prompt + ~0.8k output, about 96% fewer tokens.
@@ -26,7 +26,7 @@ Requires macOS/Linux, `curl`, `python3`, and a Google account with Antigravity a
 
 ## Safety defaults
 - Read-only (`--mode plan`) unless Claude passes `-w`; never `--dangerously-skip-permissions`.
-- `agy` permissions: read-only commands allowed; `rm`, `sudo`, `git push/commit/reset/checkout/clean`, `curl`, `wget` denied.
+- `agy` permissions: read-only commands (`ls cat head tail grep rg wc pwd git status/diff/log`) allowed; `find` and `sed -n` are deliberately NOT allowed (prefix rules would permit `find -delete/-exec`, `sed w`); `--mode plan` is not a sandbox; `rm`, `sudo`, `git push/commit/reset/checkout/clean`, `curl`, `wget` denied.
 - Gemini models only (Claude models inside agy don't save tokens), output capped at 20 KB.
 - Claude must review all output: `agy` can invent facts. Never used for numerical results, validation verdicts or git.
 
@@ -55,19 +55,11 @@ Quick launch: `./open-monitor.sh` (macOS: double-click `Monitor.command`; Window
 `agy-run.sh -r` (PowerShell: `-Research`) prepends `references/research-profile.md` (epistemic labels, no fabricated references, IEEE, English). Test: Mie-theory references came back with correct, Crossref-verified DOIs; agy's "Confirmed" labels are still leads, Claude re-checks.
 
 ### Usage windows
-The widget also shows rolling 5 h / 24 h / 7 d totals (new tokens = in + out + cache write; cache reads shown separately because they are billed at a fraction). These are local estimates from transcripts: Anthropic's official 5 h/weekly percentages are server-side. Set `AGY_MONITOR_LIMIT_5H` / `AGY_MONITOR_LIMIT_7D` (tokens) to get a percentage bar against your own budget.
+The widget also shows rolling 5 h / 24 h / 7 d totals (new tokens = in + out + cache write; cache reads shown separately because they are billed at a fraction). These are local estimates from transcripts: Anthropic's official 5 h/weekly percentages are server-side. Set `AGY_MONITOR_LIMIT_5H` / `AGY_MONITOR_LIMIT_24H` (daily) / `AGY_MONITOR_LIMIT_7D` (weekly), in tokens, to get a percentage bar for each window against your own budget. A **Claude tokens saved** card estimates what delegation avoided per window: (bytes Claude would have read, from `-b`, or agy input tokens minus its ~12.7k fixed overhead) minus (prompt + answer returned), only for `ok` calls. It is a heuristic, not a measurement: see docs/BENCHMARK.md for what it does and does not mean (helper tokens are spent on Gemini, not Claude).
 
 ## Model router
-`agy-run.sh -a extract|summarize|edit|reason` picks the model via `scripts/router.py`, adapting to the usage log (escalates when a model's failure rate >30% over ≥3 calls; below 6 KB it answers "do it in Claude"). Tests: `python3 plugins/agy-delegate/skills/agy-delegate/scripts/test_router.py`.
+`agy-run.sh -a extract|summarize|edit|reason` picks the model via `scripts/router.py`, adapting to the usage log (escalates when a model's failure rate >30% over ≥3 calls; below 6 KB it answers "do it in Claude"). Tests: `test_router.py`, `bash test_wrapper.sh` (fake agy: exit codes, statuses, routing, escalation) in the scripts folder and `python3 test_monitor.py`; real-agy benchmark: `benchmark.py`.
 
-Benchmark behind the policy (one task, `ewald.rs`, ground truth FNS=20 / TESTS=32, models run in parallel so latencies are noisy, n=1):
+Benchmark behind the policy: 27 real calls (3 models x 3 counting tasks x 3 reps, independent ground truth) in [docs/BENCHMARK.md](docs/BENCHMARK.md). flash-medium and flash-high were 9/9 correct; flash-low was 6/9 (wrong with status `ok`), so `extract` starts on flash-medium. An earlier single-task run (`ewald.rs`, n=1) found gpt-oss-120b returning a plan instead of an answer and claude-* inside agy possibly using Claude quota: neither is routed.
 
-| Model | Time | Result |
-|---|---|---|
-| gemini-3.8-flash-low | 65 s (41 s via router, alone) | correct |
-| gemini-3.8-flash-medium | 146 s | correct |
-| gemini-3.8-flash-high | 123 s | correct |
-| claude-sonnet-5-5-low (inside agy) | 19 s | correct, but may use Claude quota: not routed |
-| gpt-oss-120b-medium | 36 s | failed: returned a plan, no answer |
-
-This is a heuristic starting policy, not a quality ranking: one task type, one sample. The router only reacts to logged `denied`/`empty` outcomes, not to answer correctness.
+This is a heuristic starting policy, not a quality ranking: one task type, a small sample. The router only reacts to logged `denied`/`empty` outcomes, not to answer correctness.
