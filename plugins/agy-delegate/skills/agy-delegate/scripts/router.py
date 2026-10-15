@@ -121,9 +121,10 @@ def catalog(refresh=False, fetch=None):
 
 # ---- routing -------------------------------------------------------------------------------------------------
 def ladder(kind, avail=None, allow_claude=True):
-    """The kind's ladder restricted to models agy offers (when known) and to the user's Claude-in-agy setting."""
+    """The kind's ladder restricted to models agy offers (when known) and to the user's Claude-in-agy setting.
+    Empty when no rung is eligible: the caller must stay in Claude, not guess a model agy may not offer."""
     lad = [m for m in LADDERS.get(kind, LADDERS["summarize"]) if allow_claude or not is_claude(m)]
-    if avail: lad = [m for m in lad if m in avail] or lad[:1]
+    if avail: lad = [m for m in lad if m in avail]
     return lad
 
 def choose(kind, nbytes=None, st=None, avail=None, allow_claude=None):
@@ -132,9 +133,13 @@ def choose(kind, nbytes=None, st=None, avail=None, allow_claude=None):
     st = stats() if st is None else st
     allow = config().get("allow_claude_in_agy", True) if allow_claude is None else allow_claude
     lad = ladder(kind, offered() if avail is None else avail, allow)
+    if not lad: return "claude", f"kind={kind}: no eligible model (none offered by agy, or Claude-in-agy is off)"
     now = time.time()
     parked = [m for m in lad if st.get(m, {}).get("quota_until", 0) > now]
-    if parked and len(parked) < len(lad): lad = [m for m in lad if m not in parked]   # out of quota until reset
+    if parked and len(parked) == len(lad):
+        wait = int(min(st[m]["quota_until"] for m in lad) - now)
+        return "claude", f"kind={kind}: every eligible model is out of quota (first reset in ~{max(wait, 1) // 60 + 1} min)"
+    lad = [m for m in lad if m not in parked]                                         # out of quota until reset
     why, i = f"kind={kind}" + (f"; skipped (quota): {', '.join(parked)}" if parked and lad and lad[0] not in parked else ""), 0
     while i < len(lad) - 1:                      # climb away from unreliable rungs
         r = st.get(lad[i])
