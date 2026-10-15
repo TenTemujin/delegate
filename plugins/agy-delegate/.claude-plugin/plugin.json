@@ -1,6 +1,6 @@
 {
   "name": "agy-delegate",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Delegate bounded, mechanical or bulk-reading tasks to the Antigravity CLI (agy / Gemini) while Claude stays the controller.",
   "license": "MIT",
   "keywords": ["antigravity", "agy", "gemini", "delegation", "tokens"]

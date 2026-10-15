@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1] - 2026-10-15
+
+### Fixed
+- `SHA256SUMS` in the 0.2.0 release had a CRLF line for the Windows binary, so `sha256sum -c` failed on it (the
+  in-app updater was not affected). The build writes LF and the release job now normalises the file and runs
+  `sha256sum -c` before publishing. The 0.2.0 binaries themselves were verified correct.
+
 ## [0.2.0] - 2026-10-15
 
 ### Added

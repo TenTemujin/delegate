@@ -37,7 +37,8 @@ def main():
         binary = os.path.join(app, "Contents", "MacOS", "agy-delegate")
     run([binary, "--selftest"])   # the packaged binary must serve every endpoint before it ships
     h = hashlib.sha256(open(asset, "rb").read()).hexdigest()
-    with open(asset + ".sha256", "w", encoding="utf-8") as f: f.write(f"{h}  {os.path.basename(asset)}\n")
+    with open(asset + ".sha256", "w", encoding="utf-8", newline="\n") as f:   # LF: sha256sum -c rejects CRLF
+        f.write(f"{h}  {os.path.basename(asset)}\n")
     print(f"built {asset} ({os.path.getsize(asset) // 1024} KB) sha256 {h}")
 
 if __name__ == "__main__":
