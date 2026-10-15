@@ -39,34 +39,7 @@ TMP="$(mktemp)"; trap 'rm -f "$TMP" "$TMP.err" "$TMP.txt"' EXIT
 # stderr kept apart: agy prints notices there (e.g. "jetski: no output ... auto-denied") that would corrupt the JSON
 RC=0; "$AGY" -p "$PREFIX$1" --model "$MODEL" --mode "$MODE" --print-timeout "$TMO" --output-format json </dev/null >"$TMP" 2>"$TMP.err" || RC=$?
 # classify: prints "<status> <in_tokens> <out_tokens>" and writes the (capped) answer text to $TMP.txt
-META="$([ -n "$PY" ] && "$PY" - "$TMP" "$RC" <<'PY' 2>/dev/null || true
-import json, sys
-raw, rc = open(sys.argv[1], errors="replace").read(), int(sys.argv[2])
-try: err = open(sys.argv[1] + ".err", errors="replace").read()
-except OSError: err = ""
-d = None
-for cand in [raw] + [l for l in reversed(raw.splitlines()) if l.lstrip().startswith("{")]:   # JSON after stray text
-    try: d = json.loads(cand); break
-    except ValueError: pass
-if not isinstance(d, dict): st, text, u = ("error" if rc else "ok"), (raw if raw.strip() else err), {}
-else:
-    text, u = d.get("response") or "", d.get("usage") or {}
-    st = "error" if rc or d.get("status") != "SUCCESS" else "ok"
-    blob = json.dumps(d) + err
-    if st == "error" and ("RESOURCE_EXHAUSTED" in blob or '"error_code": 429' in blob):
-        st = "quota"   # provider quota for this model: the router skips it until the reset
-    if st in ("error", "quota") and not text: text = (json.dumps({k: d[k] for k in d if k != "usage"}) + " " + err.strip())[:2000]
-    elif st == "ok" and not text.strip() and (d.get("denied_actions") or "auto-denied" in err):
-        st, text = "denied", "jetski: no output (denied: " + ", ".join(a.get("action", "?") for a in d.get("denied_actions") or []) + ")"
-if st == "ok" and (text.startswith("jetski: no output") or (not text.strip() and err.startswith("jetski: no output"))): st = "denied"
-elif st == "ok" and not text.strip(): st = "empty"
-import re
-m = re.search(r"[Rr]esets in ((?:\d+[hms])+)", json.dumps(d) + err if isinstance(d, dict) else raw + err)
-retry = sum(int(n) * {"h": 3600, "m": 60, "s": 1}[k] for n, k in re.findall(r"(\d+)([hms])", m.group(1))) if m else 0
-open(sys.argv[1] + ".txt", "w").write(text[:20000])
-print(st, u.get("input_tokens") or 0, u.get("output_tokens") or 0, retry)
-PY
-)"
+META="$([ -n "$PY" ] && "$PY" "$(dirname "$0")/classify.py" "$TMP" "$RC" 2>/dev/null || true)"
 RETRY=0
 if [ -n "$META" ]; then read -r ST TIN TOUT RETRY <<<"$META"; OUT="$(cat "$TMP.txt")"
 else  # python3 missing/failed: raw text, exit code decides status
