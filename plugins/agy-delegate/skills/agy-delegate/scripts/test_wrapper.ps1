@@ -53,7 +53,7 @@ try {
   Chk "small stays" (Run ok -Kind extract -Bytes 100 "p") 3
   Chk "agy not called" (Test-Path $env:FAKE_ARGS) False
   Chk "big delegates" (Run ok -Kind extract -Bytes 50000 "p") 0
-  Chk "extract->medium" (Used) "gemini-3.8-flash-medium"
+  Chk "extract->argon-medium" (Used) "gemini-4-argon-medium"
   Chk "src_bytes logged" (Last src_bytes) 50000
   Chk "-Model wins" (Run ok -Kind extract -Bytes 100 -Model gemini-x "p") 0
   Chk "forced model" (Used) "gemini-x"
@@ -61,7 +61,7 @@ try {
   Set-Content $env:AGY_DELEGATE_LOG ""
   1..3 | ForEach-Object { Run errzero -Kind extract -Bytes 50000 "p" | Out-Null }
   Run ok -Kind extract -Bytes 50000 "p" | Out-Null
-  Chk "escalated" (Used) "gemini-3.8-flash-high"
+  Chk "escalated" (Used) "gemini-3.8-flash-medium"
   Run ok "a `"quoted`" `$HOME line2" | Out-Null
   Chk "prompt intact" ([bool](Select-String -Path $env:FAKE_ARGS -SimpleMatch 'a "quoted" $HOME line2')) True
 } finally { Remove-Item -Recurse -Force $T }
