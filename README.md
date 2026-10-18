@@ -1,14 +1,27 @@
-<p align="center"><img src="assets/icon-256.png" width="112" alt="agy-delegate"></p>
+<p align="center">
+  <img src="assets/icon-256.png" width="96" alt="agy-delegate">
+</p>
 
 <h1 align="center">agy-delegate</h1>
-
-<p align="center">Let Claude Code hand bulk reading and mechanical work to the Antigravity CLI (<code>agy</code>), so Claude's
-quota goes to the work that needs Claude. Claude stays in charge and reviews everything.</p>
+<p align="center"><em>let the helper carry it</em></p>
 
 <p align="center">
 <a href="https://github.com/TenTemujin/delegate/actions/workflows/ci.yml"><img src="https://github.com/TenTemujin/delegate/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 <a href="https://github.com/TenTemujin/delegate/releases/latest"><img src="https://img.shields.io/github/v/release/TenTemujin/delegate" alt="release"></a>
 </p>
+
+agy-delegate lets Claude Code hand bulk reading and mechanical work to the Antigravity CLI (`agy`), so Claude's quota goes to the work that needs Claude. Claude stays in charge and reviews everything. It is one small app, a Claude Code plugin, and a router that picks the model for each job. It is a sibling of [Tailgate](https://github.com/TenTemujin/tailgate), which lists it in its catalog and shows what it saved.
+
+## What is in it
+
+| Where | What |
+| --- | --- |
+| **Overview** | Claude Code tokens per 5 h / 24 h / 7 d window, tokens saved by delegation, per-model share, helper outcomes. |
+| **Activity** | Every delegated call with model, status, duration, helper tokens and estimated saving. |
+| **Components** | Plugin switches (same as `/plugin`), agy status, safety rules, install and uninstall. |
+| **Router** | Which model each kind of task goes to right now, and every model agy offers with its record. |
+| **Updates** | Checks GitHub once a day. One click to update, or automatic. |
+| **Settings** | Token budgets, Claude-models-inside-agy switch, every file the tool touches. |
 
 ## Install
 
@@ -39,17 +52,9 @@ Then `python3 app.py` opens the app. On first run it sets up its window runtime 
     /plugin install agy-delegate@agy-delegate-marketplace
     /agy-delegate:setup
 
-## The app
+## Use
 
-A translucent, native window (Windows 11 acrylic, Windows 10 rounded glass, macOS vibrancy):
-
-- **Overview**: Claude Code tokens per 5 h / 24 h / 7 d window (local estimate from transcripts; bars appear when you
-  set a budget), tokens saved by delegation, per-model share, helper outcomes.
-- **Activity**: every delegated call with model, status, duration, helper tokens and estimated saving.
-- **Components**: plugin switches (same as `/plugin`), agy status, safety rules, install / uninstall.
-- **Router**: which model each kind of task goes to right now, and every model agy offers with its record.
-- **Updates**: checks GitHub once a day; one click to update, or automatic.
-- **Settings**: token budgets, Claude-models-inside-agy switch, every file the tool touches.
+Open the app (`agy-delegate-windows-x64.exe`, the macOS app, or `python3 app.py`). It is a native window with the same look as Tailgate: paper, ink and one signal orange. The tabs are the table above.
 
 It only listens on `127.0.0.1`, rejects other `Host` headers, and requires a per-launch token for any change.
 
@@ -94,7 +99,7 @@ the round trip would cost more than it saves. The order comes from the [benchmar
 - Claude-side savings on a real 229 KB file: ~57k tokens read directly vs ~0.5k delegated ([docs/VALIDATION.md](docs/VALIDATION.md)).
   Helper tokens are spent on Antigravity, not Claude, and are not comparable 1:1 in cost.
 
-## Development
+## Build
 
     python plugins/agy-delegate/scripts/test_agyctl.py                    # installer core
     python plugins/agy-delegate/skills/agy-delegate/scripts/test_router.py
@@ -115,4 +120,8 @@ Layout: `app.py` (window) · `panel.py` + `panel.html` (UI server) · `monitor.p
 Optional third-party add-ons, off by default and not validated here: [caveman](https://github.com/JuliusBrussee/caveman)
 (`--with-caveman`) and [rtk](https://github.com/rtk-ai/rtk) (`--with-rtk`).
 
-Unofficial; not affiliated with Google or Anthropic. MIT license.
+## Limits
+
+The desktop apps are unsigned, so SmartScreen (Windows) and Gatekeeper (macOS) warn on first launch. Savings are an estimate and only for calls that passed `-b`. Unofficial; not affiliated with Google or Anthropic.
+
+MIT licensed.

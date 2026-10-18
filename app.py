@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""agy-delegate desktop app: the control panel in a native translucent window (macOS vibrancy, Windows acrylic /
-blur-behind), so the desktop shows through the glass. Run: python3 app.py   (--prepare: only set up the runtime)
+"""agy-delegate desktop app: the control panel in a native window (Tailgate look: solid paper, ink and one orange;
+the OS glass effects are applied but the page paints over them). Run: python3 app.py   (--prepare: only set up the runtime)
 
 The only third-party piece, pywebview, is installed automatically on first run into a private venv
 (~/.agy-delegate/venv), never into your system Python. If that is impossible (offline, no venv module), the same
