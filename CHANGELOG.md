@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- Look aligned with [Tailgate](https://github.com/TenTemujin/tailgate): panel is now paper, ink and one signal orange
+  (monospace headings, square corners, no glass, gradients or blur) in both light and dark.
+- New icon in the same style (bracket plus one crate handed out). Regenerated `icon.png`, `icon-256.png`, `icon.ico`, `icon.icns`.
+- README follows the Tailgate layout (what is in it, install, use, build, limits). Workflow names are lowercase (`ci`, `release`).
+
 ## [0.2.2] - 2026-10-15
 
 ### Added
